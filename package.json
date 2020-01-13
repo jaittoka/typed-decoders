@@ -1,6 +1,6 @@
 {
-  "name": "ts-decoders",
-  "description": "Typesafe decoders",
+  "name": "typed-decoders",
+  "description": "Typesafe decoders for Typescript",
   "version": "1.0.0",
   "main": "lib/index",
   "typings": "lib/index",
