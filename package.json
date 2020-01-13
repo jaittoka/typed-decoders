@@ -1,0 +1,26 @@
+{
+  "name": "ts-decoders",
+  "description": "Typesafe decoders",
+  "version": "1.0.0",
+  "main": "lib/index",
+  "typings": "lib/index",
+  "author": "Jukka Aittokallio <jukka@aittokallio.com>",
+  "license": "MIT",
+  "scripts": {
+    "prepublishOnly": "npm run compile",
+    "compile": "npm run clean && tsc",
+    "watch": "tsc -w ./src",
+    "clean": "rm -rf lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/jaittoka/ts-decoders.git"
+  },
+  "devDependencies": {
+    "typescript": "^3.7.4"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/index.d.ts"
+  ]
+}
