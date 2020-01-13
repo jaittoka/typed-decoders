@@ -46,7 +46,7 @@ export function formatPath(context: DecodeContext): string {
   return res.join(".");
 }
 
-export function error<T>(
+export function failure<T>(
   error: string,
   decoderName: string,
   ctx: DecodeContext
@@ -59,11 +59,11 @@ export function ok<T>(value: T): DecodeResult<T> {
   return { type: "success", value };
 }
 
-export function isOk<T>(value: unknown): value is DecodeSuccess<T> {
+export function isSuccess<T>(value: unknown): value is DecodeSuccess<T> {
   return (value as DecodeSuccess<T>).type === "success";
 }
 
-export function isError<T>(value: unknown): value is DecodeFailure {
+export function isFailure<T>(value: unknown): value is DecodeFailure {
   return (value as DecodeFailure).type === "failure";
 }
 
@@ -86,7 +86,7 @@ const LiteralDecoder = <T extends LiteralTypes>(expect: T): Decoder<T> => {
     name,
     decode: function(value: unknown, ctx: DecodeContext) {
       if (value !== expect) {
-        return error("expected_literal", name, ctx);
+        return failure("expected_literal", name, ctx);
       }
       return ok(expect);
     }
@@ -97,7 +97,7 @@ const StringDecoder: Decoder<string> = {
   name: "String",
   decode: function(value: unknown, ctx: DecodeContext): DecodeResult<string> {
     if (typeof value !== "string") {
-      return error("expected_string", StringDecoder.name, ctx);
+      return failure("expected_string", StringDecoder.name, ctx);
     }
     return ok(value);
   }
@@ -107,7 +107,7 @@ const BooleanDecoder: Decoder<boolean> = {
   name: "Boolean",
   decode: function(value: unknown, ctx: DecodeContext): DecodeResult<boolean> {
     if (typeof value !== "boolean") {
-      return error("expected_boolean", BooleanDecoder.name, ctx);
+      return failure("expected_boolean", BooleanDecoder.name, ctx);
     }
     return ok(value);
   }
@@ -117,7 +117,7 @@ const NumberDecoder: Decoder<number> = {
   name: "Number",
   decode: function(value: unknown, ctx: DecodeContext): DecodeResult<number> {
     if (typeof value !== "number") {
-      return error("expected_number", NumberDecoder.name, ctx);
+      return failure("expected_number", NumberDecoder.name, ctx);
     }
     return ok(value);
   }
@@ -127,11 +127,11 @@ const NumberStringDecoder: Decoder<number> = {
   name: "NumberString",
   decode: function(value: unknown, ctx: DecodeContext): DecodeResult<number> {
     if (typeof value !== "string") {
-      return error("expected_numberstring", NumberStringDecoder.name, ctx);
+      return failure("expected_numberstring", NumberStringDecoder.name, ctx);
     }
     const res = parseFloat(value);
     if (isNaN(res)) {
-      return error("expected_numberstring", NumberStringDecoder.name, ctx);
+      return failure("expected_numberstring", NumberStringDecoder.name, ctx);
     }
     return ok(res);
   }
@@ -141,7 +141,7 @@ const DateDecoder: Decoder<Date> = {
   name: "Date",
   decode: function(value: unknown, ctx: DecodeContext): DecodeResult<Date> {
     if (!(value instanceof Date)) {
-      return error("expected_date", DateDecoder.name, ctx);
+      return failure("expected_date", DateDecoder.name, ctx);
     }
     return ok(value);
   }
@@ -151,11 +151,11 @@ const DateStringDecoder: Decoder<Date> = {
   name: "DateString",
   decode: function(value: unknown, ctx: DecodeContext): DecodeResult<Date> {
     if (typeof value !== "string") {
-      return error("expected_datestring", DateStringDecoder.name, ctx);
+      return failure("expected_datestring", DateStringDecoder.name, ctx);
     }
     const res = new Date(value);
     if (isNaN(res.getTime())) {
-      return error("expected_datestring", DateStringDecoder.name, ctx);
+      return failure("expected_datestring", DateStringDecoder.name, ctx);
     }
     return ok(res);
   }
@@ -168,7 +168,7 @@ const UndefinedDecoder: Decoder<undefined> = {
     ctx: DecodeContext
   ): DecodeResult<undefined> {
     if (value !== undefined) {
-      return error("expected_undefined", UndefinedDecoder.name, ctx);
+      return failure("expected_undefined", UndefinedDecoder.name, ctx);
     }
     return ok(value as undefined);
   }
@@ -178,7 +178,7 @@ const NullDecoder: Decoder<null> = {
   name: "Null",
   decode: function(value: unknown, ctx: DecodeContext): DecodeResult<null> {
     if (value !== null) {
-      return error("expected_null", NullDecoder.name, ctx);
+      return failure("expected_null", NullDecoder.name, ctx);
     }
     return ok(value as null);
   }
@@ -193,11 +193,11 @@ const TupleDecoder = <T extends any[]>(
     decode: function(value: unknown, ctx: DecodeContext) {
       const result = ([] as unknown) as T;
       if (!Array.isArray(value)) {
-        return error("expected_tuple", name, ctx);
+        return failure("expected_tuple", name, ctx);
       }
       for (let i = 0; i < decoders.length; i++) {
         const r = decoders[i].decode(value[i], context(ctx, i));
-        if (isError(r)) {
+        if (isFailure(r)) {
           return r;
         }
         result[i] = r.value;
@@ -226,12 +226,12 @@ const ArrayDecoder = <T>(decoder: Decoder<T>): Decoder<T[]> => {
     name,
     decode: function(value: unknown, ctx: DecodeContext) {
       if (!Array.isArray(value)) {
-        return error("expected_array", name, ctx);
+        return failure("expected_array", name, ctx);
       }
       const res = [] as T[];
       for (let i = 0; i < value.length; i++) {
         const r = decoder.decode(value[i], context(ctx, i));
-        if (isError(r)) {
+        if (isFailure(r)) {
           return r;
         }
         res.push(r.value);
@@ -251,7 +251,7 @@ const RecordDecoder = <T>(
     name,
     decode: function(value: unknown, ctx: DecodeContext) {
       if (typeof value !== "object" || value === null) {
-        return error("expected_object", name, ctx);
+        return failure("expected_object", name, ctx);
       }
       const keys = Object.keys(fields) as (keyof T)[];
       const res = {} as T;
@@ -261,7 +261,7 @@ const RecordDecoder = <T>(
           (value as any)[name],
           context(ctx, name as string)
         );
-        if (isError(r)) {
+        if (isFailure(r)) {
           return r;
         }
         if (r.value !== undefined) {
@@ -282,11 +282,11 @@ const UnionDecoder = <T extends any[]>(
     decode: function(value: unknown, ctx: DecodeContext) {
       for (let i = 0; i < decoders.length; i++) {
         const r = decoders[i].decode(value, context(ctx, i));
-        if (isOk(r)) {
+        if (isSuccess(r)) {
           return r;
         }
       }
-      return error("expected_union", name, ctx);
+      return failure("expected_union", name, ctx);
     }
   };
 };
@@ -301,9 +301,9 @@ export const UnifyDecoder = <T extends any[], Z>(
       for (let i = 0; i < match.length; i++) {
         const m = match[i];
         const r = m[0].decode(value, ROOT_CONTEXT);
-        if (isOk(r)) return ok(m[1](r.value));
+        if (isSuccess(r)) return ok(m[1](r.value));
       }
-      return error("expected_unify", name, ctx);
+      return failure("expected_unify", name, ctx);
     }
   };
 };
@@ -317,7 +317,7 @@ export function runDecoder<T>(
 
 export function runDecoderE<T>(decoder: Decoder<T>, value: unknown): T {
   const result = decoder.decode(value, ROOT_CONTEXT);
-  if (isError(result)) {
+  if (isFailure(result)) {
     throw new DecodeError(result.error, result.decoderName, result.path);
   } else {
     return result.value;
