@@ -327,8 +327,9 @@ export const ProductDecoder = <T, S>(
   };
 };
 
-export const DefaultDecoder = <A>(defaultValue: A) => (
-  decoder: Decoder<A>
+export const DefaultDecoder = <A>(
+  decoder: Decoder<A>,
+  defaultValue: A
 ): Decoder<A> => {
   return {
     name: `Default(${decoder.name})`,
@@ -339,8 +340,9 @@ export const DefaultDecoder = <A>(defaultValue: A) => (
   };
 };
 
-export const MapDecoder = <A, B>(f: (value: A) => B) => (
-  decoder: Decoder<A>
+export const MapDecoder = <A, B>(
+  decoder: Decoder<A>,
+  f: (value: A) => B
 ): Decoder<B> => {
   const name = `Map(${decoder.name})`;
   return {
