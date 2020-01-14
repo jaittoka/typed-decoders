@@ -1,6 +1,16 @@
 {
   "name": "typed-decoders",
   "description": "Typesafe decoders for Typescript",
+  "keywords": [
+    "typed",
+    "type",
+    "typescript",
+    "validation",
+    "decoder",
+    "api",
+    "json",
+    "checking"
+  ],
   "version": "1.0.1",
   "main": "lib/index",
   "typings": "lib/index",
