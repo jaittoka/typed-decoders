@@ -55,7 +55,7 @@ export function failure<T>(
   return { type: "failure", error, decoderName, path };
 }
 
-export function ok<T>(value: T): DecodeResult<T> {
+export function success<T>(value: T): DecodeResult<T> {
   return { type: "success", value };
 }
 
@@ -76,7 +76,7 @@ export type LiteralTypes = undefined | null | boolean | number | string;
 const UnknownDecoder: Decoder<unknown> = {
   name: "Unknown",
   decode: function(value: unknown, ctx: DecodeContext) {
-    return ok(value);
+    return success(value);
   }
 };
 
@@ -88,7 +88,7 @@ const LiteralDecoder = <T extends LiteralTypes>(expect: T): Decoder<T> => {
       if (value !== expect) {
         return failure("expected_literal", name, ctx);
       }
-      return ok(expect);
+      return success(expect);
     }
   };
 };
@@ -99,7 +99,7 @@ const StringDecoder: Decoder<string> = {
     if (typeof value !== "string") {
       return failure("expected_string", StringDecoder.name, ctx);
     }
-    return ok(value);
+    return success(value);
   }
 };
 
@@ -109,7 +109,7 @@ const BooleanDecoder: Decoder<boolean> = {
     if (typeof value !== "boolean") {
       return failure("expected_boolean", BooleanDecoder.name, ctx);
     }
-    return ok(value);
+    return success(value);
   }
 };
 
@@ -119,7 +119,7 @@ const NumberDecoder: Decoder<number> = {
     if (typeof value !== "number") {
       return failure("expected_number", NumberDecoder.name, ctx);
     }
-    return ok(value);
+    return success(value);
   }
 };
 
@@ -133,7 +133,7 @@ const NumberStringDecoder: Decoder<number> = {
     if (isNaN(res)) {
       return failure("expected_numberstring", NumberStringDecoder.name, ctx);
     }
-    return ok(res);
+    return success(res);
   }
 };
 
@@ -143,7 +143,7 @@ const DateDecoder: Decoder<Date> = {
     if (!(value instanceof Date)) {
       return failure("expected_date", DateDecoder.name, ctx);
     }
-    return ok(value);
+    return success(value);
   }
 };
 
@@ -157,7 +157,7 @@ const DateStringDecoder: Decoder<Date> = {
     if (isNaN(res.getTime())) {
       return failure("expected_datestring", DateStringDecoder.name, ctx);
     }
-    return ok(res);
+    return success(res);
   }
 };
 
@@ -170,7 +170,7 @@ const UndefinedDecoder: Decoder<undefined> = {
     if (value !== undefined) {
       return failure("expected_undefined", UndefinedDecoder.name, ctx);
     }
-    return ok(value as undefined);
+    return success(value as undefined);
   }
 };
 
@@ -180,7 +180,7 @@ const NullDecoder: Decoder<null> = {
     if (value !== null) {
       return failure("expected_null", NullDecoder.name, ctx);
     }
-    return ok(value as null);
+    return success(value as null);
   }
 };
 
@@ -202,7 +202,7 @@ const TupleDecoder = <T extends any[]>(
         }
         result[i] = r.value;
       }
-      return ok(result);
+      return success(result);
     }
   };
 };
@@ -213,7 +213,7 @@ const OptionalDecoder = <T>(decoder: Decoder<T>): Decoder<T | undefined> => {
     name,
     decode: function(value: unknown, ctx: DecodeContext) {
       if (value === undefined) {
-        return ok(undefined);
+        return success(undefined);
       }
       return decoder.decode(value, ctx);
     }
@@ -236,7 +236,7 @@ const ArrayDecoder = <T>(decoder: Decoder<T>): Decoder<T[]> => {
         }
         res.push(r.value);
       }
-      return ok(res);
+      return success(res);
     }
   };
 };
@@ -268,7 +268,7 @@ const RecordDecoder = <T>(
           res[name] = r.value;
         }
       }
-      return ok(res);
+      return success(res);
     }
   };
 };
@@ -301,9 +301,44 @@ export const UnifyDecoder = <T extends any[], Z>(
       for (let i = 0; i < match.length; i++) {
         const m = match[i];
         const r = m[0].decode(value, ROOT_CONTEXT);
-        if (isSuccess(r)) return ok(m[1](r.value));
+        if (isSuccess(r)) return success(m[1](r.value));
       }
       return failure("expected_unify", name, ctx);
+    }
+  };
+};
+
+export const ProductDecoder = <T, S>(
+  td: Decoder<T>,
+  sd: Decoder<S>
+): Decoder<T & S> => {
+  return {
+    name: "And",
+    decode: (value: unknown, ctx: DecodeContext) => {
+      const t = td.decode(value, ctx);
+      const s = sd.decode(value, ctx);
+      if (isFailure(t)) {
+        return t;
+      } else if (isFailure(s)) {
+        return s;
+      }
+      return success({ ...t.value, ...s.value });
+    }
+  };
+};
+
+export const MapDecoder = <A, B>(f: (value: A) => B) => (
+  decoder: Decoder<A>
+): Decoder<B> => {
+  const name = `Map(${decoder.name})`;
+  return {
+    name,
+    decode: (value: unknown, ctx: DecodeContext) => {
+      const r = decoder.decode(value, ctx);
+      if (isFailure(r)) {
+        return r;
+      }
+      return success(f(r.value));
     }
   };
 };
@@ -340,5 +375,7 @@ export const Decoders = {
   Array: ArrayDecoder,
   Tuple: TupleDecoder,
   Union: UnionDecoder,
-  Unify: UnifyDecoder
+  Unify: UnifyDecoder,
+  Product: ProductDecoder,
+  Map: MapDecoder
 };
