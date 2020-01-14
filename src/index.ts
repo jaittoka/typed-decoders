@@ -327,6 +327,18 @@ export const ProductDecoder = <T, S>(
   };
 };
 
+export const DefaultDecoder = <A>(defaultValue: A) => (
+  decoder: Decoder<A>
+): Decoder<A> => {
+  return {
+    name: `Default(${decoder.name})`,
+    decode: (value: unknown, ctx: DecodeContext) => {
+      if (value === undefined) return success(defaultValue);
+      return decoder.decode(value, ctx);
+    }
+  };
+};
+
 export const MapDecoder = <A, B>(f: (value: A) => B) => (
   decoder: Decoder<A>
 ): Decoder<B> => {
@@ -377,5 +389,6 @@ export const Decoders = {
   Union: UnionDecoder,
   Unify: UnifyDecoder,
   Product: ProductDecoder,
-  Map: MapDecoder
+  Map: MapDecoder,
+  Default: DefaultDecoder
 };

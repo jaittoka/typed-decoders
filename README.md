@@ -16,6 +16,9 @@
 - Tuple
 - Union
 - Unify
+- Product
+- Map
+- Default
 
 # Usage examples
 
