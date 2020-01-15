@@ -73,6 +73,17 @@ export function context(parent: DecodeContext, key: string | number) {
 
 export type LiteralTypes = undefined | null | boolean | number | string;
 
+const FailDecoder = <T>(error: string, decoderName: string) => ({
+  name: "Fail",
+  decode: (value: unknown, ctx: DecodeContext) =>
+    failure<T>(error, decoderName, ctx)
+});
+
+const SuccessDecoder = <T>(value: T) => ({
+  name: "Success",
+  decode: (value: unknown, ctx: DecodeContext) => success(value)
+});
+
 const UnknownDecoder: Decoder<unknown> = {
   name: "Unknown",
   decode: function(value: unknown, ctx: DecodeContext) {
@@ -388,6 +399,8 @@ export function runDecoderE<T>(decoder: Decoder<T>, value: unknown): T {
 }
 
 export const Decoders = {
+  Fail: FailDecoder,
+  Success: SuccessDecoder,
   Literal: LiteralDecoder,
   String: StringDecoder,
   Boolean: BooleanDecoder,
