@@ -79,9 +79,9 @@ const FailDecoder = <T>(error: string, decoderName: string) => ({
     failure<T>(error, decoderName, ctx)
 });
 
-const SuccessDecoder = <T>(value: T) => ({
+const SuccessDecoder = <T>(retValue: T): Decoder<T> => ({
   name: "Success",
-  decode: (value: unknown, ctx: DecodeContext) => success(value)
+  decode: (value: unknown, ctx: DecodeContext) => success(retValue)
 });
 
 const UnknownDecoder: Decoder<unknown> = {
