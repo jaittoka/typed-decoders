@@ -1,24 +1,26 @@
 # This module offers following decoders
 
-- Literal
-- String
-- Boolean
-- Number
-- NumberString
-- Undefined
-- Date
-- DateString
-- Null
-- Unknown
-- Optional
-- Record
-- Array
-- Tuple
-- Union
-- Unify
-- Product
-- Map
-- Default
+- `Fail` Accepts never (always fails)
+- `Success` Accepts always and returns a fixed value
+- `Literal` Accepts literal value
+- `String` Accepts string
+- `Boolean` Accepts boolean value
+- `Number` Accepts number value
+- `NumberString` Accepts a string that can be converted to number
+- `Undefined` Accepts undefined value
+- `Date` Accepts Date instance value
+- `DateString` Accepts a string that can be converted to a Date
+- `Null` Accepts null value
+- `Unknown` Accepts anything, but decode result type is still unknown
+- `Optional` Converts decoder to accept also undefined values
+- `Record` Create an Object decoder with fields decoder.
+- `Array` Creates an Array decoder with a item type decoder.
+- `Tuple` Creates a Tuple decoder with item decoders.
+- `Union` Creates a decoder that can accept multiple different decodings.
+- `Unify` Creates a decoder that takes multiple decoders, but return a single type result
+- `Product` Creates a decoder that decodes value with multiple object types and combines them.
+- `Map` Creates a decoder that decodes value with multiple types and uses a combine function to make a single type out of them.
+- `Default` Converts a decoder to a decoder with a default value.
 
 # Usage examples
 
@@ -39,6 +41,8 @@ const ResultD = D.Union(SuccessD, FailureD);
 
 type Result = GetType<typeof ResultD>;
 
+// this succeeds
+const result: Result = runDecoder(ResultD, { kind: "success", value: 3 });
 
 ```
 
@@ -81,6 +85,7 @@ interface DecodeFailure {
 }
 
 type DecodeResult<T> = DecodeSuccess<T> | DecodeFailure;
+
 ```
 
 There are helper functions isSuccess and isFailure for checking the result type.
