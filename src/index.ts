@@ -307,26 +307,6 @@ export const UnifyDecoder = <T extends any[], Z>(
     }
   };
 };
-
-export const ProductDecoder = <T, S>(
-  td: Decoder<T>,
-  sd: Decoder<S>
-): Decoder<T & S> => {
-  return {
-    name: "And",
-    decode: (value: unknown, ctx: DecodeContext) => {
-      const t = td.decode(value, ctx);
-      const s = sd.decode(value, ctx);
-      if (isFailure(t)) {
-        return t;
-      } else if (isFailure(s)) {
-        return s;
-      }
-      return success({ ...t.value, ...s.value });
-    }
-  };
-};
-
 export const DefaultDecoder = <A>(
   decoder: Decoder<A>,
   defaultValue: A
@@ -340,19 +320,53 @@ export const DefaultDecoder = <A>(
   };
 };
 
-export const MapDecoder = <A, B>(
-  decoder: Decoder<A>,
-  f: (value: A) => B
-): Decoder<B> => {
-  const name = `Map(${decoder.name})`;
+function ProductDecoder<A, B>(a: Decoder<A>, b: Decoder<B>): Decoder<A & B>;
+function ProductDecoder<A, B, C>(
+  a: Decoder<A>,
+  b: Decoder<B>,
+  c: Decoder<C>
+): Decoder<A & B & C>;
+function ProductDecoder<A, B, C, D>(
+  a: Decoder<A>,
+  b: Decoder<B>,
+  c: Decoder<C>,
+  d: Decoder<D>
+): Decoder<A & B & C & D>;
+function ProductDecoder(...decoders: Decoder<any>[]): Decoder<any> {
+  return {
+    name: `Product(${decoders.map(d => d.name).join(", ")})`,
+    decode: (value: unknown, ctx: DecodeContext) => {
+      let result = {} as any;
+      for (let i = 0; i < decoders.length; i++) {
+        const r = decoders[i].decode(value, ctx);
+        if (isFailure(r)) {
+          return r;
+        }
+        const obj = r.value;
+        Object.keys(obj).forEach(key => (result[key] = obj[key]));
+      }
+      return success(result);
+    }
+  };
+}
+
+export const MapDecoder = <T extends any[], R>(
+  f: (...value: T) => R,
+  ...decoders: { [K in keyof T]: Decoder<T[K]> }
+): Decoder<R> => {
+  const name = `Map(${decoders.map(d => d.name).join(", ")})`;
   return {
     name,
     decode: (value: unknown, ctx: DecodeContext) => {
-      const r = decoder.decode(value, ctx);
-      if (isFailure(r)) {
-        return r;
+      const params: T = ([] as unknown) as T;
+      for (let i = 0; i < decoders.length; i++) {
+        const r = decoders[i].decode(value, ctx);
+        if (isFailure(r)) {
+          return r;
+        }
+        params[i] = r.value;
       }
-      return success(f(r.value));
+      return success(f(...params));
     }
   };
 };
