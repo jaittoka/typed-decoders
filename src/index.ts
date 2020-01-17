@@ -227,7 +227,7 @@ const OptionalDecoder = <T>(decoder: Decoder<T>): Decoder<T | undefined> => {
   return {
     name,
     decode: function(value: unknown, ctx: DecodeContext) {
-      if (value === undefined) {
+      if (value === undefined || value === null) {
         return success(undefined);
       }
       return decoder.decode(value, ctx);
@@ -306,22 +306,51 @@ const UnionDecoder = <T extends any[]>(
   };
 };
 
-export const UnifyDecoder = <T extends any[], Z>(
-  ...match: { [K in keyof T]: [Decoder<T[K]>, (value: T[K]) => Z] }
-): Decoder<Z> => {
-  const name = `(${match.map(d => d[0].name).join(" | ")}) => Z`;
+function UnifyDecoder<Z, A>(...m: [[Decoder<A>, (Value: A) => Z]]): Decoder<Z>;
+function UnifyDecoder<Z, A, B>(
+  ...m: [[Decoder<A>, (Value: A) => Z], [Decoder<B>, (Value: B) => Z]]
+): Decoder<Z>;
+function UnifyDecoder<Z, A, B, C>(
+  ...m: [
+    [Decoder<A>, (Value: A) => Z],
+    [Decoder<B>, (Value: B) => Z],
+    [Decoder<C>, (Value: C) => Z]
+  ]
+): Decoder<Z>;
+function UnifyDecoder<Z, A, B, C, D>(
+  ...m: [
+    [Decoder<A>, (Value: A) => Z],
+    [Decoder<B>, (Value: B) => Z],
+    [Decoder<C>, (Value: C) => Z],
+    [Decoder<D>, (Value: D) => Z]
+  ]
+): Decoder<Z>;
+function UnifyDecoder<Z, A, B, C, D, E>(
+  ...m: [
+    [Decoder<A>, (Value: A) => Z],
+    [Decoder<B>, (Value: B) => Z],
+    [Decoder<C>, (Value: C) => Z],
+    [Decoder<D>, (Value: D) => Z],
+    [Decoder<E>, (Value: E) => Z]
+  ]
+): Decoder<Z>;
+function UnifyDecoder<Z>(
+  ...match: Array<[Decoder<any>, (v: any) => Z]>
+): Decoder<Z> {
+  const name = `Unify(${match.map(d => d[0].name).join(" | ")})`;
   return {
     name,
     decode: (value: unknown, ctx: DecodeContext) => {
       for (let i = 0; i < match.length; i++) {
         const m = match[i];
         const r = m[0].decode(value, ROOT_CONTEXT);
-        if (isSuccess(r)) return success(m[1](r.value));
+        if (isSuccess(r)) return success<Z>(m[1](r.value));
       }
-      return failure("expected_unify", name, ctx);
+      return failure<Z>("expected_unify", name, ctx);
     }
   };
-};
+}
+
 export const DefaultDecoder = <A>(
   decoder: Decoder<A>,
   defaultValue: A
@@ -329,7 +358,7 @@ export const DefaultDecoder = <A>(
   return {
     name: `Default(${decoder.name})`,
     decode: (value: unknown, ctx: DecodeContext) => {
-      if (value === undefined) return success(defaultValue);
+      if (value === undefined || value === null) return success(defaultValue);
       return decoder.decode(value, ctx);
     }
   };
@@ -355,6 +384,19 @@ function ProductDecoder<
   c: Decoder<C>,
   d: Decoder<D>
 ): Decoder<A & B & C & D>;
+function ProductDecoder<
+  A extends object,
+  B extends object,
+  C extends object,
+  D extends object,
+  E extends object
+>(
+  a: Decoder<A>,
+  b: Decoder<B>,
+  c: Decoder<C>,
+  d: Decoder<D>,
+  e: Decoder<E>
+): Decoder<A & B & C & D & E>;
 function ProductDecoder(...decoders: Decoder<any>[]): Decoder<any> {
   return {
     name: `Product(${decoders.map(d => d.name).join(", ")})`,
