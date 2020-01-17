@@ -5,7 +5,7 @@ function getType(value: any): string {
 function mergeObject(dest: any, src: any): any {
   const result = {} as any;
   Object.keys(dest).forEach(key => (result[key] = merge(dest[key], src[key])));
-  Object.keys(src).forEach(key => (result[key] = merge(dest[key], src[key])));
+  Object.keys(src).forEach(key => (result[key] = merge(result[key], src[key])));
   return result;
 }
 
