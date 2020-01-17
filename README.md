@@ -157,7 +157,7 @@ type MyUnify = GetType<typeof MyUnifyDecoder>
 
 `MyUnifyDecoder` will fail if you give it a value of some other type than the three mentioned above.
 
-If you want to make it to accept all types, you could for example add the following as the last parameter `[D.Unknown, (v: unknown) =>`unknown \${v}`]`
+If you want to make it to accept all types, you could for example add the following as the last parameter `` [D.Unknown, (v: unknown) =>`unknown \${v}`] ``
 
 ## Map
 
