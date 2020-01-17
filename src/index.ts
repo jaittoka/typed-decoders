@@ -1,3 +1,5 @@
+import merge from "./merge";
+
 export interface DecodeSuccess<T> {
   type: "success";
   value: T;
@@ -59,11 +61,13 @@ export function success<T>(value: T): DecodeResult<T> {
   return { type: "success", value };
 }
 
-export function isSuccess<T>(value: unknown): value is DecodeSuccess<T> {
+export function isSuccess<T>(
+  value: DecodeResult<T>
+): value is DecodeSuccess<T> {
   return (value as DecodeSuccess<T>).type === "success";
 }
 
-export function isFailure<T>(value: unknown): value is DecodeFailure {
+export function isFailure<T>(value: DecodeResult<T>): value is DecodeFailure {
   return (value as DecodeFailure).type === "failure";
 }
 
@@ -331,13 +335,21 @@ export const DefaultDecoder = <A>(
   };
 };
 
-function ProductDecoder<A, B>(a: Decoder<A>, b: Decoder<B>): Decoder<A & B>;
-function ProductDecoder<A, B, C>(
+function ProductDecoder<A extends object, B extends object>(
+  a: Decoder<A>,
+  b: Decoder<B>
+): Decoder<A & B>;
+function ProductDecoder<A extends object, B extends object, C extends object>(
   a: Decoder<A>,
   b: Decoder<B>,
   c: Decoder<C>
 ): Decoder<A & B & C>;
-function ProductDecoder<A, B, C, D>(
+function ProductDecoder<
+  A extends object,
+  B extends object,
+  C extends object,
+  D extends object
+>(
   a: Decoder<A>,
   b: Decoder<B>,
   c: Decoder<C>,
@@ -347,14 +359,13 @@ function ProductDecoder(...decoders: Decoder<any>[]): Decoder<any> {
   return {
     name: `Product(${decoders.map(d => d.name).join(", ")})`,
     decode: (value: unknown, ctx: DecodeContext) => {
-      let result = {} as any;
+      let result: any;
       for (let i = 0; i < decoders.length; i++) {
         const r = decoders[i].decode(value, ctx);
         if (isFailure(r)) {
           return r;
         }
-        const obj = r.value;
-        Object.keys(obj).forEach(key => (result[key] = obj[key]));
+        result = merge(result, r.value);
       }
       return success(result);
     }
