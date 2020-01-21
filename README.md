@@ -14,16 +14,16 @@ You might receive a javascript object from a server that represents a library re
 import { Decoders as D, runDecoder, isSuccess, GetType } from './index';
 
 const PersonDecoder = D.obj({
-  id: D.num,
-  firstName: D.str,
-  lastName: D.str,
-  dateOfBirth: D.strDate
+  id: D.Num,
+  firstName: D.Str,
+  lastName: D.Str,
+  dateOfBirth: D.StrDate
 })
 
 const ResourceDecoder = D.obj({
-  id: D.num,
-  type: D.some(D.lit("book"), D.lit("blueray"), D.lit("dvd")),
-  name: D.str,
+  id: D.Num,
+  type: D.Some(D.Lit("book"), D.Lit("blueray"), D.Lit("dvd")),
+  name: D.Str,
   reservedBy: PersonDecoder
 })
 ```
