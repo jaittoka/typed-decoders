@@ -1,44 +1,31 @@
-import merge from "./merge";
-
-export interface DecodeSuccess<T> {
-  type: "success";
-  value: T;
+class Failure {
+  constructor(public readonly error: string, public readonly path: string) {}
 }
 
-export interface DecodeFailure {
-  type: "failure";
-  error: string;
-  decoderName: string;
-  path: string;
+class Success<T> {
+  constructor(public readonly value: T) {}
 }
 
-export class DecodeError extends Error {
-  constructor(
-    error: string,
-    public readonly decoderName: string,
-    public readonly path: string
-  ) {
-    super(error);
-  }
-}
-
-export type DecodeResult<T> = DecodeSuccess<T> | DecodeFailure;
-
-export interface DecodeContext {
-  parent?: DecodeContext;
-  key: string | number;
+export interface Context {
+  parent?: Context;
+  key: string;
 }
 
 const ROOT_CONTEXT = { key: "<root>" };
 
-export interface Decoder<T> {
-  name: string;
-  decode(value: unknown, ctx: DecodeContext): DecodeResult<T>;
+export type Result<T> = Success<T> | Failure;
+
+export type Transform<S, T> = (value: S, ctx: Context) => Result<T>;
+
+export type Source<T> = Transform<unknown, T>;
+
+export type GetType<T> = T extends Transform<any, infer R> ? R : never;
+
+export function context(parent: Context, key: string) {
+  return { parent, key };
 }
 
-export type GetType<T> = T extends Decoder<infer U> ? U : never;
-
-export function formatPath(context: DecodeContext): string {
+export function formatPath(context: Context): string {
   const res = [] as string[];
   while (context.parent !== undefined) {
     res.push(context.key.toString());
@@ -48,429 +35,264 @@ export function formatPath(context: DecodeContext): string {
   return res.join(".");
 }
 
-export function failure<T>(
-  error: string,
-  decoderName: string,
-  ctx: DecodeContext
-): DecodeResult<T> {
-  const path = formatPath(ctx);
-  return { type: "failure", error, decoderName, path };
+export function failure(error: string, ctx: Context) {
+  return new Failure(error, formatPath(ctx));
 }
 
-export function success<T>(value: T): DecodeResult<T> {
-  return { type: "success", value };
+export function success<T>(value: T) {
+  return new Success(value);
 }
 
-export function isSuccess<T>(
-  value: DecodeResult<T>
-): value is DecodeSuccess<T> {
-  return (value as DecodeSuccess<T>).type === "success";
+export function isFailure<T>(v: Result<T>): v is Failure {
+  return v instanceof Failure;
 }
 
-export function isFailure<T>(value: DecodeResult<T>): value is DecodeFailure {
-  return (value as DecodeFailure).type === "failure";
+export function isSuccess<T>(v: Result<T>): v is Success<T> {
+  return v instanceof Success;
 }
 
-export function context(parent: DecodeContext, key: string | number) {
-  return { parent, key };
+function succeed<T>(value: T): Source<T> {
+  return (_value: unknown, ctx: Context) => new Success<T>(value);
 }
+
+function fail<T>(error: string): Source<T> {
+  return (_value: unknown, ctx: Context) => new Failure(error, "");
+}
+
+const str: Source<string> = (value: unknown, ctx: Context) => {
+  if (typeof value !== "string") return failure("expected_string", ctx);
+  return new Success(value);
+};
 
 export type LiteralTypes = undefined | null | boolean | number | string;
 
-const FailDecoder = <T>(error: string, decoderName: string): Decoder<T> => ({
-  name: "Fail",
-  decode: (value: unknown, ctx: DecodeContext) =>
-    failure(error, decoderName, ctx)
-});
-
-const SuccessDecoder = <T>(retValue: T): Decoder<T> => ({
-  name: "Success",
-  decode: (value: unknown, ctx: DecodeContext) => success(retValue)
-});
-
-const UnknownDecoder: Decoder<unknown> = {
-  name: "Unknown",
-  decode: function(value: unknown, ctx: DecodeContext) {
-    return success(value);
-  }
-};
-
-const LiteralDecoder = <T extends LiteralTypes>(expect: T): Decoder<T> => {
-  const name = "Literal";
-  return {
-    name,
-    decode: function(value: unknown, ctx: DecodeContext) {
-      if (value !== expect) {
-        return failure("expected_literal", name, ctx);
-      }
-      return success(expect);
-    }
-  };
-};
-
-const StringDecoder: Decoder<string> = {
-  name: "String",
-  decode: function(value: unknown, ctx: DecodeContext): DecodeResult<string> {
-    if (typeof value !== "string") {
-      return failure("expected_string", StringDecoder.name, ctx);
-    }
-    return success(value);
-  }
-};
-
-const BooleanDecoder: Decoder<boolean> = {
-  name: "Boolean",
-  decode: function(value: unknown, ctx: DecodeContext): DecodeResult<boolean> {
-    if (typeof value !== "boolean") {
-      return failure("expected_boolean", BooleanDecoder.name, ctx);
-    }
-    return success(value);
-  }
-};
-
-const NumberDecoder: Decoder<number> = {
-  name: "Number",
-  decode: function(value: unknown, ctx: DecodeContext): DecodeResult<number> {
-    if (typeof value !== "number") {
-      return failure("expected_number", NumberDecoder.name, ctx);
-    }
-    return success(value);
-  }
-};
-
-const NumberStringDecoder: Decoder<number> = {
-  name: "NumberString",
-  decode: function(value: unknown, ctx: DecodeContext): DecodeResult<number> {
-    if (typeof value !== "string") {
-      return failure("expected_numberstring", NumberStringDecoder.name, ctx);
-    }
-    const res = parseFloat(value);
-    if (isNaN(res)) {
-      return failure("expected_numberstring", NumberStringDecoder.name, ctx);
-    }
-    return success(res);
-  }
-};
-
-const DateDecoder: Decoder<Date> = {
-  name: "Date",
-  decode: function(value: unknown, ctx: DecodeContext): DecodeResult<Date> {
-    if (!(value instanceof Date)) {
-      return failure("expected_date", DateDecoder.name, ctx);
-    }
-    return success(value);
-  }
-};
-
-const DateStringDecoder: Decoder<Date> = {
-  name: "DateString",
-  decode: function(value: unknown, ctx: DecodeContext): DecodeResult<Date> {
-    if (typeof value !== "string") {
-      return failure("expected_datestring", DateStringDecoder.name, ctx);
-    }
-    const res = new Date(value);
-    if (isNaN(res.getTime())) {
-      return failure("expected_datestring", DateStringDecoder.name, ctx);
-    }
-    return success(res);
-  }
-};
-
-const UndefinedDecoder: Decoder<undefined> = {
-  name: "Undefined",
-  decode: function(
-    value: unknown,
-    ctx: DecodeContext
-  ): DecodeResult<undefined> {
-    if (value !== undefined) {
-      return failure("expected_undefined", UndefinedDecoder.name, ctx);
-    }
-    return success(value as undefined);
-  }
-};
-
-const NullDecoder: Decoder<null> = {
-  name: "Null",
-  decode: function(value: unknown, ctx: DecodeContext): DecodeResult<null> {
-    if (value !== null) {
-      return failure("expected_null", NullDecoder.name, ctx);
-    }
-    return success(value as null);
-  }
-};
-
-const TupleDecoder = <T extends any[]>(
-  ...decoders: { [K in keyof T]: Decoder<T[K]> }
-): Decoder<T> => {
-  const name = `[${decoders.map(d => d.name).join(", ")}]`;
-  return {
-    name,
-    decode: function(value: unknown, ctx: DecodeContext) {
-      const result = ([] as unknown) as T;
-      if (!Array.isArray(value)) {
-        return failure("expected_tuple", name, ctx);
-      }
-      for (let i = 0; i < decoders.length; i++) {
-        const r = decoders[i].decode(value[i], context(ctx, i));
-        if (isFailure(r)) {
-          return r;
-        }
-        result[i] = r.value;
-      }
-      return success(result);
-    }
-  };
-};
-
-const OptionalDecoder = <T>(decoder: Decoder<T>): Decoder<T | undefined> => {
-  const name = `${decoder.name} | Undefined`;
-  return {
-    name,
-    decode: function(value: unknown, ctx: DecodeContext) {
-      if (value === undefined || value === null) {
-        return success(undefined);
-      }
-      return decoder.decode(value, ctx);
-    }
-  };
-};
-
-const ArrayDecoder = <T>(decoder: Decoder<T>): Decoder<T[]> => {
-  const name = `${decoder.name}[]`;
-  return {
-    name,
-    decode: function(value: unknown, ctx: DecodeContext) {
-      if (!Array.isArray(value)) {
-        return failure("expected_array", name, ctx);
-      }
-      const res = [] as T[];
-      for (let i = 0; i < value.length; i++) {
-        const r = decoder.decode(value[i], context(ctx, i));
-        if (isFailure(r)) {
-          return r;
-        }
-        res.push(r.value);
-      }
-      return success(res);
-    }
-  };
-};
-
-const RecordDecoder = <T>(
-  fields: { [K in keyof T]: Decoder<T[K]> }
-): Decoder<T> => {
-  const name = `{ ${Object.keys(fields)
-    .map(name => `${name}: ${fields[name as keyof T].name}`)
-    .join(", ")} }`;
-  return {
-    name,
-    decode: function(value: unknown, ctx: DecodeContext) {
-      if (typeof value !== "object" || value === null) {
-        return failure("expected_object", name, ctx);
-      }
-      const keys = Object.keys(fields) as (keyof T)[];
-      const res = {} as T;
-      for (let i = 0; i < keys.length; i++) {
-        const name = keys[i];
-        const r = fields[name].decode(
-          (value as any)[name],
-          context(ctx, name as string)
-        );
-        if (isFailure(r)) {
-          return r;
-        }
-        if (r.value !== undefined) {
-          res[name] = r.value;
-        }
-      }
-      return success(res);
-    }
-  };
-};
-
-const UnionDecoder = <T extends any[]>(
-  ...decoders: { [K in keyof T]: Decoder<T[K]> }
-): Decoder<T[number]> => {
-  const name = `${decoders.map(d => d.name).join(" | ")}`;
-  return {
-    name,
-    decode: function(value: unknown, ctx: DecodeContext) {
-      for (let i = 0; i < decoders.length; i++) {
-        const r = decoders[i].decode(value, context(ctx, i));
-        if (isSuccess(r)) {
-          return r;
-        }
-      }
-      return failure("expected_union", name, ctx);
-    }
-  };
-};
-
-function UnifyDecoder<Z, A>(...m: [[Decoder<A>, (Value: A) => Z]]): Decoder<Z>;
-function UnifyDecoder<Z, A, B>(
-  ...m: [[Decoder<A>, (Value: A) => Z], [Decoder<B>, (Value: B) => Z]]
-): Decoder<Z>;
-function UnifyDecoder<Z, A, B, C>(
-  ...m: [
-    [Decoder<A>, (Value: A) => Z],
-    [Decoder<B>, (Value: B) => Z],
-    [Decoder<C>, (Value: C) => Z]
-  ]
-): Decoder<Z>;
-function UnifyDecoder<Z, A, B, C, D>(
-  ...m: [
-    [Decoder<A>, (Value: A) => Z],
-    [Decoder<B>, (Value: B) => Z],
-    [Decoder<C>, (Value: C) => Z],
-    [Decoder<D>, (Value: D) => Z]
-  ]
-): Decoder<Z>;
-function UnifyDecoder<Z, A, B, C, D, E>(
-  ...m: [
-    [Decoder<A>, (Value: A) => Z],
-    [Decoder<B>, (Value: B) => Z],
-    [Decoder<C>, (Value: C) => Z],
-    [Decoder<D>, (Value: D) => Z],
-    [Decoder<E>, (Value: E) => Z]
-  ]
-): Decoder<Z>;
-function UnifyDecoder<Z>(
-  ...match: Array<[Decoder<any>, (v: any) => Z]>
-): Decoder<Z> {
-  const name = `Unify(${match.map(d => d[0].name).join(" | ")})`;
-  return {
-    name,
-    decode: (value: unknown, ctx: DecodeContext) => {
-      for (let i = 0; i < match.length; i++) {
-        const m = match[i];
-        const r = m[0].decode(value, ROOT_CONTEXT);
-        if (isSuccess(r)) return success<Z>(m[1](r.value));
-      }
-      return failure<Z>("expected_unify", name, ctx);
-    }
+function lit<T extends LiteralTypes>(expect: T): Source<T> {
+  return (value: unknown, ctx: Context) => {
+    if (value !== expect) return failure("expected_literal", ctx);
+    return new Success(expect);
   };
 }
 
-export const DefaultDecoder = <A>(
-  decoder: Decoder<A>,
-  defaultValue: A
-): Decoder<A> => {
-  return {
-    name: `Default(${decoder.name})`,
-    decode: (value: unknown, ctx: DecodeContext) => {
-      if (value === undefined || value === null) return success(defaultValue);
-      return decoder.decode(value, ctx);
-    }
-  };
+const undef: Source<undefined> = (value: unknown, ctx: Context) => {
+  if (value !== undefined) return failure("expected_undefined", ctx);
+  return new Success(value);
 };
 
-function ProductDecoder<A extends object, B extends object>(
-  a: Decoder<A>,
-  b: Decoder<B>
-): Decoder<A & B>;
-function ProductDecoder<A extends object, B extends object, C extends object>(
-  a: Decoder<A>,
-  b: Decoder<B>,
-  c: Decoder<C>
-): Decoder<A & B & C>;
-function ProductDecoder<
-  A extends object,
-  B extends object,
-  C extends object,
-  D extends object
->(
-  a: Decoder<A>,
-  b: Decoder<B>,
-  c: Decoder<C>,
-  d: Decoder<D>
-): Decoder<A & B & C & D>;
-function ProductDecoder<
-  A extends object,
-  B extends object,
-  C extends object,
-  D extends object,
-  E extends object
->(
-  a: Decoder<A>,
-  b: Decoder<B>,
-  c: Decoder<C>,
-  d: Decoder<D>,
-  e: Decoder<E>
-): Decoder<A & B & C & D & E>;
-function ProductDecoder(...decoders: Decoder<any>[]): Decoder<any> {
-  return {
-    name: `Product(${decoders.map(d => d.name).join(", ")})`,
-    decode: (value: unknown, ctx: DecodeContext) => {
-      let result: any;
-      for (let i = 0; i < decoders.length; i++) {
-        const r = decoders[i].decode(value, ctx);
-        if (isFailure(r)) {
-          return r;
-        }
-        result = merge(result, r.value);
-      }
-      return success(result);
-    }
+const nullt: Source<null> = (value: unknown, ctx: Context) => {
+  if (value !== null) return failure("expected_null", ctx);
+  return new Success(value);
+};
+
+const num: Source<number> = (value: unknown, ctx: Context) => {
+  if (typeof value !== "number") return failure("expected_number", ctx);
+  return new Success(value);
+};
+
+const bool: Source<boolean> = (value: unknown, ctx: Context) => {
+  if (typeof value !== "boolean") return failure("expected_boolean", ctx);
+  return new Success(value);
+};
+
+const date: Source<Date> = (value: unknown, ctx: Context) => {
+  if (!(value instanceof Date) || isNaN(value.getTime())) {
+    return failure("expected_date", ctx);
+  }
+  return new Success(value);
+};
+
+const strDate: Transform<string, Date> = (value: string, ctx: Context) => {
+  return date(new Date(value), ctx);
+};
+
+const strNum: Transform<string, number> = (value: string, ctx: Context) => {
+  const v = parseFloat(value);
+  if (isNaN(v)) return failure("expected_number_string", ctx);
+  return new Success(v);
+};
+
+const pass = <S>(value: S) => new Success(value);
+
+function opt<S, T>(d: Transform<S, T>) {
+  return (value: S | undefined | null, ctx: Context) => {
+    if (value === undefined || value === null) return new Success(value);
+    return d(value, ctx);
   };
 }
 
-export const MapDecoder = <T extends any[], R>(
-  f: (...value: T) => R,
-  ...decoders: { [K in keyof T]: Decoder<T[K]> }
-): Decoder<R> => {
-  const name = `Map(${decoders.map(d => d.name).join(", ")})`;
-  return {
-    name,
-    decode: (value: unknown, ctx: DecodeContext) => {
-      const params: T = ([] as unknown) as T;
-      for (let i = 0; i < decoders.length; i++) {
-        const r = decoders[i].decode(value, ctx);
-        if (isFailure(r)) {
-          return r;
-        }
-        params[i] = r.value;
-      }
-      return success(f(...params));
-    }
+function def<S, T>(defval: T, d: Transform<S, T>) {
+  return (value: S | undefined | null, ctx: Context) => {
+    if (value === undefined || value === null) return new Success(defval);
+    return d(value, ctx);
   };
-};
-
-export function runDecoder<T>(
-  decoder: Decoder<T>,
-  value: unknown
-): DecodeResult<T> {
-  return decoder.decode(value, ROOT_CONTEXT);
 }
 
-export function runDecoderE<T>(decoder: Decoder<T>, value: unknown): T {
-  const result = decoder.decode(value, ROOT_CONTEXT);
-  if (isFailure(result)) {
-    throw new DecodeError(result.error, result.decoderName, result.path);
+function arr<T>(d: Source<T>): Source<T[]> {
+  return (value: unknown, ctx: Context) => {
+    if (!Array.isArray(value)) return failure("expected_array", ctx);
+    const result = [] as T[];
+    for (let i = 0; i < value.length; i++) {
+      const r = d(value[i], context(ctx, `${i}`));
+      if (!isSuccess(r)) return r;
+      result[i] = r.value;
+    }
+    return new Success(result);
+  };
+}
+
+function obj<T extends object>(
+  fields: { [K in keyof T]: Source<T[K]> }
+): Source<T> {
+  return (value: unknown, ctx: Context) => {
+    if (typeof value !== "object" || value === null) {
+      return failure("expected_object", ctx);
+    }
+    const result = {} as T;
+    const keys = Object.keys(fields) as (keyof T)[];
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      const r = fields[key]((value as any)[key], context(ctx, String(key)));
+      if (!isSuccess(r)) return r;
+      result[key] = r.value;
+    }
+    return new Success(result);
+  };
+}
+
+function some<S, T extends any[]>(
+  ...d: { [K in keyof T]: Transform<S, T[K]> }
+): Transform<S, T[number]> {
+  return (value: S, ctx: Context) => {
+    for (let i = 0; i < d.length; i++) {
+      const r = d[i](value, ctx);
+      if (isSuccess(r)) return r;
+    }
+    return failure("expected_union", ctx);
+  };
+}
+
+type SelFunc<S, T> = (value: S) => T;
+
+function select<S, R, D1, D2>(
+  s1: [Transform<S, D1>, SelFunc<D1, R>],
+  s2: [Transform<S, D2>, SelFunc<D2, R>]
+): Transform<S, R>;
+function select<S, R, D1, D2, D3>(
+  s1: [Transform<S, D1>, SelFunc<D1, R>],
+  s2: [Transform<S, D2>, SelFunc<D2, R>],
+  s3: [Transform<S, D3>, SelFunc<D3, R>]
+): Transform<S, R>;
+function select<S, R, D1, D2, D3, D4>(
+  s1: [Transform<S, D1>, SelFunc<D1, R>],
+  s2: [Transform<S, D2>, SelFunc<D2, R>],
+  s3: [Transform<S, D3>, SelFunc<D3, R>],
+  s4: [Transform<S, D4>, SelFunc<D4, R>]
+): Transform<S, R>;
+function select<S, R, D1, D2, D3, D4, D5>(
+  s1: [Transform<S, D1>, SelFunc<D1, R>],
+  s2: [Transform<S, D2>, SelFunc<D2, R>],
+  s3: [Transform<S, D3>, SelFunc<D3, R>],
+  s4: [Transform<S, D4>, SelFunc<D4, R>],
+  s5: [Transform<S, D5>, SelFunc<D5, R>]
+): Transform<S, R>;
+function select(
+  ...selectors: [Transform<any, any>, SelFunc<any, any>][]
+): Transform<any, any> {
+  return (value: any, ctx: Context) => {
+    for (let i = 0; i < selectors.length; i++) {
+      const r = selectors[i][0](value, ctx);
+      if (isSuccess(r)) return success(selectors[i][1](r.value));
+    }
+    return failure("selector_not_matched", ctx);
+  };
+}
+
+function map<S, T extends any[], R>(
+  f: (...values: T) => R,
+  ...d: { [K in keyof T]: Transform<S, T[K]> }
+): Transform<S, R> {
+  return (value: S, ctx: Context) => {
+    const result = ([] as unknown) as T;
+    for (let i = 0; i < d.length; i++) {
+      const r = d[i](value, ctx);
+      if (!isSuccess(r)) return r;
+      result[i] = r.value;
+    }
+    return new Success(f(...result));
+  };
+}
+
+function pipe<A, B, C>(
+  d1: Transform<A, B>,
+  d2: Transform<B, C>
+): Transform<A, C>;
+function pipe<A, B, C, D>(
+  d1: Transform<A, B>,
+  d2: Transform<B, C>,
+  d3: Transform<C, D>
+): Transform<A, D>;
+function pipe<A, B, C, D, E>(
+  d1: Transform<A, B>,
+  d2: Transform<B, C>,
+  d3: Transform<C, D>,
+  d4: Transform<D, E>
+): Transform<A, E>;
+function pipe<A, B, C, D, E, F>(
+  d1: Transform<A, B>,
+  d2: Transform<B, C>,
+  d3: Transform<C, D>,
+  d4: Transform<D, E>,
+  d5: Transform<E, F>
+): Transform<A, F>;
+function pipe(...d: Transform<any, any>[]): Transform<any, any> {
+  return (value: any, ctx: Context) => {
+    let result = value;
+    for (let i = 0; i < d.length; i++) {
+      const r = d[i](result, ctx);
+      if (!isSuccess(r)) return r;
+      result = r.value;
+    }
+    return result;
+  };
+}
+
+export function runDecoder<S, T>(d: Transform<S, T>, value: S): Result<T> {
+  return d(value, ROOT_CONTEXT);
+}
+
+export class TransformError extends Error {
+  constructor(msg: string, public readonly path: string) {
+    super(msg);
+  }
+}
+
+export function runDecoderE<S, T>(d: Transform<S, T>, value: S): T {
+  const r = d(value, ROOT_CONTEXT);
+  if (isSuccess(r)) {
+    return r.value;
   } else {
-    return result.value;
+    throw new TransformError(r.error, r.path);
   }
 }
 
 export const Decoders = {
-  Fail: FailDecoder,
-  Success: SuccessDecoder,
-  Literal: LiteralDecoder,
-  String: StringDecoder,
-  Boolean: BooleanDecoder,
-  Number: NumberDecoder,
-  NumberString: NumberStringDecoder,
-  Undefined: UndefinedDecoder,
-  Date: DateDecoder,
-  DateString: DateStringDecoder,
-  Null: NullDecoder,
-  Unknown: UnknownDecoder,
-  Optional: OptionalDecoder,
-  Record: RecordDecoder,
-  Array: ArrayDecoder,
-  Tuple: TupleDecoder,
-  Union: UnionDecoder,
-  Unify: UnifyDecoder,
-  Product: ProductDecoder,
-  Map: MapDecoder,
-  Default: DefaultDecoder
+  Succeed: succeed,
+  Fail: fail,
+  Undef: undef,
+  Null: nullt,
+  Str: str,
+  Lit: lit,
+  Num: num,
+  Bool: bool,
+  Date: date,
+  StrDate: strDate,
+  StrNum: strNum,
+  Pass: pass,
+  Opt: opt,
+  Def: def,
+  Obj: obj,
+  Arr: arr,
+  Some: some,
+  Map: map,
+  Select: select,
+  Pipe: pipe
 };
