@@ -52,7 +52,7 @@ export function isSuccess<T>(v: Result<T>): v is Success<T> {
 }
 
 function succeed<T>(value: T): Source<T> {
-  return (_value: unknown, ctx: Context) => new Success<T>(value);
+  return (_value: unknown, ctx: Context) => success<T>(value);
 }
 
 function fail<T>(error: string): Source<T> {
@@ -61,7 +61,7 @@ function fail<T>(error: string): Source<T> {
 
 const str: Source<string> = (value: unknown, ctx: Context) => {
   if (typeof value !== "string") return failure("expected_string", ctx);
-  return new Success(value);
+  return success(value);
 };
 
 export type LiteralTypes = undefined | null | boolean | number | string;
@@ -69,35 +69,35 @@ export type LiteralTypes = undefined | null | boolean | number | string;
 function lit<T extends LiteralTypes>(expect: T): Source<T> {
   return (value: unknown, ctx: Context) => {
     if (value !== expect) return failure("expected_literal", ctx);
-    return new Success(expect);
+    return success(expect);
   };
 }
 
 const undef: Source<undefined> = (value: unknown, ctx: Context) => {
   if (value !== undefined) return failure("expected_undefined", ctx);
-  return new Success(value);
+  return success(value);
 };
 
 const nullt: Source<null> = (value: unknown, ctx: Context) => {
   if (value !== null) return failure("expected_null", ctx);
-  return new Success(value);
+  return success(value);
 };
 
 const num: Source<number> = (value: unknown, ctx: Context) => {
   if (typeof value !== "number") return failure("expected_number", ctx);
-  return new Success(value);
+  return success(value);
 };
 
 const bool: Source<boolean> = (value: unknown, ctx: Context) => {
   if (typeof value !== "boolean") return failure("expected_boolean", ctx);
-  return new Success(value);
+  return success(value);
 };
 
 const date: Source<Date> = (value: unknown, ctx: Context) => {
   if (!(value instanceof Date) || isNaN(value.getTime())) {
     return failure("expected_date", ctx);
   }
-  return new Success(value);
+  return success(value);
 };
 
 const strDate: Transform<string, Date> = (value: string, ctx: Context) => {
@@ -107,23 +107,23 @@ const strDate: Transform<string, Date> = (value: string, ctx: Context) => {
 const strNum: Transform<string, number> = (value: string, ctx: Context) => {
   const v = parseFloat(value);
   if (isNaN(v)) return failure("expected_number_string", ctx);
-  return new Success(v);
+  return success(v);
 };
 
-const pass = <S>(value: S) => new Success(value);
+const pass = <S>(value: S) => success(value);
 
 function opt<S, T>(
   d: Transform<S, T>
 ): Transform<S | undefined | null, T | undefined> {
   return (value: S | undefined | null, ctx: Context) => {
-    if (value === undefined || value === null) return new Success(undefined);
+    if (value === undefined || value === null) return success(undefined);
     return d(value, ctx);
   };
 }
 
 function def<S, T>(defval: T, d: Transform<S, T>) {
   return (value: S | undefined | null, ctx: Context) => {
-    if (value === undefined || value === null) return new Success(defval);
+    if (value === undefined || value === null) return success(defval);
     return d(value, ctx);
   };
 }
@@ -132,12 +132,13 @@ function arr<T>(d: Source<T>): Source<T[]> {
   return (value: unknown, ctx: Context) => {
     if (!Array.isArray(value)) return failure("expected_array", ctx);
     const result = [] as T[];
+
     for (let i = 0; i < value.length; i++) {
       const r = d(value[i], context(ctx, `${i}`));
       if (!isSuccess(r)) return r;
       result[i] = r.value;
     }
-    return new Success(result);
+    return success(result);
   };
 }
 
@@ -156,7 +157,7 @@ function obj<T extends object>(
       if (!isSuccess(r)) return r;
       result[key] = r.value;
     }
-    return new Success(result);
+    return success(result);
   };
 }
 
@@ -219,7 +220,7 @@ function map<S, T extends any[], R>(
       if (!isSuccess(r)) return r;
       result[i] = r.value;
     }
-    return new Success(f(...result));
+    return success(f(...result));
   };
 }
 
@@ -253,7 +254,7 @@ function pipe(...d: Transform<any, any>[]): Transform<any, any> {
       if (!isSuccess(r)) return r;
       result = r.value;
     }
-    return result;
+    return success(result);
   };
 }
 
