@@ -80,8 +80,33 @@ test("Every", test => {
 test("DateString", test => {
   test.plan(2);
 
+  const StrDate = D.Pipe(D.Str, D.StrDate);
   const d = new Date();
-  let result = runDecoder(D.StrDate, d.toISOString());
+  let result = runDecoder(StrDate, d.toISOString());
   test.assert(isSuccess(result));
   test.equal((result as any).value.getTime(), d.getTime());
+});
+
+test("Array of objects", test => {
+  test.plan(2);
+  const d1 = new Date("2020-01-02");
+  const d2 = new Date("2020-01-03");
+  const decoder = D.Arr(
+    D.Obj({
+      date: D.Date,
+      isOk: D.Bool
+    })
+  );
+
+  const data = [
+    { date: d1, isOk: true },
+    { date: d2, isOk: false }
+  ];
+
+  let result = runDecoder(decoder, data);
+  test.assert(isSuccess(result));
+  test.deepEqual((result as any).value, [
+    { date: d1, isOk: true },
+    { date: d2, isOk: false }
+  ]);
 });
