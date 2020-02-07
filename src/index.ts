@@ -112,9 +112,11 @@ const strNum: Transform<string, number> = (value: string, ctx: Context) => {
 
 const pass = <S>(value: S) => new Success(value);
 
-function opt<S, T>(d: Transform<S, T>) {
+function opt<S, T>(
+  d: Transform<S, T>
+): Transform<S | undefined | null, T | undefined> {
   return (value: S | undefined | null, ctx: Context) => {
-    if (value === undefined || value === null) return new Success(value);
+    if (value === undefined || value === null) return new Success(undefined);
     return d(value, ctx);
   };
 }
