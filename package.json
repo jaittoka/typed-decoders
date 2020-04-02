@@ -37,8 +37,5 @@
     "lib/index.js",
     "lib/index.d.ts",
     "lib/merge.js"
-  ],
-  "dependencies": {
-    "tap": "^14.10.7"
-  }
+  ]
 }
