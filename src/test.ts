@@ -1,5 +1,5 @@
 import * as test from "tape";
-import { Decoders as D, runDecoder, runDecoderE, isSuccess } from "./index";
+import { Decoders as D, runDecoder, runDecoderE, isSuccess, isFailure } from "./index";
 
 test("Unify", test => {
   test.plan(4);
@@ -40,6 +40,22 @@ test("Object", test => {
   const result = runDecoderE(Person, data);
   test.deepEqual(result, data);
 });
+
+test("Object should fail with missing field", test => {
+  const Person = D.Obj({
+    name: D.Str,
+    age: D.Num,
+  });
+
+  const data = {
+    name: "John",
+  };
+
+  test.plan(1);
+  const result = runDecoder(Person, data);
+  test.assert(isFailure(result));
+});
+
 
 test("Union", test => {
   const E1 = D.Obj({
@@ -109,4 +125,22 @@ test("Array of objects", test => {
     { date: d1, isOk: true },
     { date: d2, isOk: false }
   ]);
+});
+
+test("Partial", test => {
+  test.plan(4);
+
+  const decoder = D.Part({
+    name: D.Str,
+    age: D.Num
+  });
+
+  let result;
+  result = runDecoder(decoder, { name: undefined });
+  test.assert(isSuccess(result));
+  result = runDecoder(decoder, { name: "x" });
+  test.assert(isSuccess(result));
+  result = runDecoder(decoder, { name: "x", age: 3 });
+  test.assert(isSuccess(result));
+  test.deepEqual((result as any).value, { name: "x", age: 3 });
 });

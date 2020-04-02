@@ -142,24 +142,36 @@ function arr<T>(d: Source<T>): Source<T[]> {
   };
 }
 
-function obj<T extends object>(
-  fields: { [K in keyof T]: Source<T[K]> }
-): Source<T> {
+type IsPartial<T extends object, P extends boolean> =
+  P extends true ? Partial<T> : T
+
+const _obj = <P extends boolean>(isPartial: P) => <T extends object>(
+  fields: { [K in keyof T]: Source<T[K]> },
+): Source<IsPartial<T, P>> => {
   return (value: unknown, ctx: Context) => {
     if (typeof value !== "object" || value === null) {
       return failure("expected_object", ctx);
     }
-    const result = {} as T;
+    const result = {} as IsPartial<T, P>;
     const keys = Object.keys(fields) as (keyof T)[];
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
-      const r = fields[key]((value as any)[key], context(ctx, String(key)));
-      if (!isSuccess(r)) return r;
-      result[key] = r.value;
+      const fieldVal = (value as any)[key];
+      if (fieldVal !== undefined) {
+        const r = fields[key](fieldVal, context(ctx, String(key)));
+        if (!isSuccess(r)) return r;
+        (result as any)[key] = r.value;
+      } else if (!isPartial) {
+        return failure(`Missing field:_${key}`, ctx)
+      }
     }
     return success(result);
   };
 }
+
+const obj = _obj(false)
+
+const partial = _obj(true);  
 
 function some<S, T extends any[]>(
   ...d: { [K in keyof T]: Transform<S, T[K]> }
@@ -293,6 +305,7 @@ export const Decoders = {
   Opt: opt,
   Def: def,
   Obj: obj,
+  Part: partial,
   Arr: arr,
   Some: some,
   Map: map,
