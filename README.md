@@ -93,25 +93,26 @@ type Result = {
 
 # This module offers following decoders
 
-- `fail` Accepts never (always fails).
-- `succeed` Accepts always and returns a fixed value.
-- `lit` Accepts literal value
-- `str` Accepts string
-- `bool` Accepts boolean value
-- `num` Accepts number value
-- `strNum` Accepts a string that can be converted to number
-- `undef` Accepts undefined value
-- `date` Accepts Date instance value
-- `strDate` Accepts a string that can be converted to a Date
-- `null` Accepts null value
-- `pass` Accepts anything, but decode result type is still unknown
-- `opt` Converts decoder to accept also undefined/null values
-- `obj` Create a decoder that accepts an object. Each field is given an own decoder
-- `arr` Creates a decoder that accepts an Array. Each item of an array is decoded with same decoder
-- `some` Creates a decoder that accepts multiple different decodings.
-- `map` Creates a decoder that accepts multiple types, but converts them all to a single type.
-- `every` Creates a decoder that decodes value with multiple object types and combines them.
-- `def` Converts a decoder to a decoder with a default value.
+- `Fail` Accepts never (always fails).
+- `Succeed` Accepts always and returns a fixed value.
+- `Lit` Accepts literal value
+- `Str` Accepts string
+- `Bool` Accepts boolean value
+- `Num` Accepts number value
+- `StrNum` Accepts a string that can be converted to number
+- `Undef` Accepts undefined value
+- `Date` Accepts Date instance value
+- `StrDate` Accepts a string that can be converted to a Date
+- `Null` Accepts null value
+- `Pass` Accepts anything, but decode result type is still unknown
+- `Opt` Converts decoder to accept also undefined/null values
+- `Obj` Create a decoder that accepts an object. Each field is given an own decoder
+  `Part` Create a decoder that accepts an object with each field optional (partial object). Each field is given an own decoder
+- `Arr` Creates a decoder that accepts an Array. Each item of an array is decoded with same decoder
+- `Some` Creates a decoder that accepts multiple different decodings.
+- `Map` Creates a decoder that accepts multiple types, but converts them all to a single type.
+- `Every` Creates a decoder that decodes value with multiple object types and combines them.
+- `Def` Converts a decoder to a decoder with a default value.
 
 # Examples for the more complex decoders
 
