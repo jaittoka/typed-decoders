@@ -144,3 +144,25 @@ test("Partial", test => {
   test.assert(isSuccess(result));
   test.deepEqual((result as any).value, { name: "x", age: 3 });
 });
+
+test("Record should succeed", test => {
+  test.plan(1);
+  const decoder = D.Rec(D.Num);
+  const data = {
+    "foo": 3,
+    "bar": 4
+  }
+  const result = runDecoder(decoder, data);
+  test.assert(isSuccess(result));
+})
+
+test("Record should fail", test => {
+  test.plan(1);
+  const decoder = D.Rec(D.Num);
+  const data = {
+    "foo": 3,
+    "bar": "4"
+  }
+  const result = runDecoder(decoder, data);
+  test.assert(isFailure(result));
+})

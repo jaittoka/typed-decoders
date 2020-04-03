@@ -107,7 +107,8 @@ type Result = {
 - `Pass` Accepts anything, but decode result type is still unknown
 - `Opt` Converts decoder to accept also undefined/null values
 - `Obj` Create a decoder that accepts an object. Each field is given an own decoder
-  `Part` Create a decoder that accepts an object with each field optional (partial object). Each field is given an own decoder
+- `Rec` Create a decoder that accepts a record (an object with string keys and all field values of same type)
+- `Part` Create a decoder that accepts an object with each field optional (partial object). Each field is given an own decoder
 - `Arr` Creates a decoder that accepts an Array. Each item of an array is decoded with same decoder
 - `Some` Creates a decoder that accepts multiple different decodings.
 - `Map` Creates a decoder that accepts multiple types, but converts them all to a single type.

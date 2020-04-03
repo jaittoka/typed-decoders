@@ -173,6 +173,23 @@ const obj = _obj(false)
 
 const partial = _obj(true);  
 
+function rec<T>(decoder: Source<T>): Source<Record<string, T>> {
+  return (value: unknown, ctx: Context) => {
+    if (typeof value !== "object" || value === null) {
+      return failure("expected_object", ctx);
+    }
+    const result = {} as Record<string, T>;
+    const keys = Object.keys(value);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      const r = decoder((value as any)[key], context(ctx, key));
+      if (isFailure(r)) return r;
+      result[key] = r.value;
+    }
+    return success(result);
+  }
+}
+
 function some<S, T extends any[]>(
   ...d: { [K in keyof T]: Transform<S, T[K]> }
 ): Transform<S, T[number]> {
@@ -305,6 +322,7 @@ export const Decoders = {
   Opt: opt,
   Def: def,
   Obj: obj,
+  Rec: rec,
   Part: partial,
   Arr: arr,
   Some: some,
