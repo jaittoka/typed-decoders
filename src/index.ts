@@ -162,7 +162,7 @@ const _obj = <P extends boolean>(isPartial: P) => <T extends object>(
         if (!isSuccess(r)) return r;
         (result as any)[key] = r.value;
       } else if (!isPartial) {
-        return failure(`Missing field:_${key}`, ctx)
+        return failure(`Missing field: ${key}`, context(ctx, String(key)))
       }
     }
     return success(result);
