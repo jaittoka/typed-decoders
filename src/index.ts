@@ -162,6 +162,11 @@ function parseProps<T extends ParseProps, B extends boolean>(
   }
 }
 
+/*
+
+  The following four helper types are from https://stackoverflow.com/a/49683575
+
+*/
 type OptionalPropertyNames<T> =
   { [K in keyof T]: undefined extends T[K] ? K : never }[keyof T];
 
