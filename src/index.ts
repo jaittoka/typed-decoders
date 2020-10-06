@@ -126,16 +126,14 @@ function arr<T>(d: Source<T>): Source<T[]> {
   };
 }
 
+type GetTypes<T> = { [K in keyof T]: T[K] extends Source<infer U> ? U : never}
 
-type GetTypes<T> = { [K in keyof T]: Source<T[K]> }
+type ParseProps = { [K in string]: Source<any> }
 
-type ParseProps = { [x in string]: Source<any> }
-
-
-function parseProps<T extends ParseProps, B extends boolean>(
-  parsers: T | undefined,
+function parseProps<T extends ParseProps, B>(
+  parsers:  T | undefined,
   optional: B
-): Source<true extends B ? Partial<GetTypes<T>> : GetTypes<T>> {
+): Source<true extends B ? Partial<GetType<T>> : GetType<T>> {
   return (value: unknown) => {
     if (typeof value !== 'object' || value === null) {
       return failure('expected_object')
@@ -182,7 +180,7 @@ type Spread<L, R> = Id<
   & SpreadProperties<L, R, OptionalPropertyNames<R> & keyof L>
 >
 
-function obj<M extends ParseProps, O extends ParseProps>(fields: M, optional?: O): Source<Spread<M, Partial<O>>> {
+function obj<M extends ParseProps, O extends ParseProps = {}>(fields: M, optional?: O): Source<Spread<GetTypes<M>, Partial<GetTypes<O>>>> {
   const requiredFields = parseProps(fields, false)
   const optFields = parseProps(optional, true)
   return (value: unknown) => {
