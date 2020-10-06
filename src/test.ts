@@ -130,16 +130,17 @@ test("Array of objects", test => {
 test("Partial", test => {
   test.plan(4);
 
-  const decoder = D.Part({
-    name: D.Str,
+  const decoder = D.Obj({
+    name: D.Str
+  }, {
     age: D.Num
   });
 
   let result;
-  result = runDecoder(decoder, { name: undefined });
+  result = runDecoder(decoder, { name: 'x' });
   test.assert(isSuccess(result));
-  result = runDecoder(decoder, { name: "x" });
-  test.assert(isSuccess(result));
+  result = runDecoder(decoder, { name: "x", age: 'x' });
+  test.assert(isFailure(result));
   result = runDecoder(decoder, { name: "x", age: 3 });
   test.assert(isSuccess(result));
   test.deepEqual((result as any).value, { name: "x", age: 3 });
