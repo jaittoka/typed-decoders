@@ -1,42 +1,26 @@
 class Failure {
-  constructor(public readonly error: string, public readonly path: string) {}
+  constructor(public readonly error: string, public readonly path?: string) {}
 }
 
 class Success<T> {
   constructor(public readonly value: T) {}
 }
 
-export interface Context {
-  parent?: Context;
-  key: string;
-}
-
-const ROOT_CONTEXT = { key: "<root>" };
-
 export type Result<T> = Success<T> | Failure;
 
-export type Transform<S, T> = (value: S, ctx: Context) => Result<T>;
+export type Transform<S, T> = (value: S) => Result<T>;
 
 export type Source<T> = Transform<unknown, T>;
 
 export type GetType<T> = T extends Transform<any, infer R> ? R : never;
 
-export function context(parent: Context, key: string) {
-  return { parent, key };
+
+export function joinPath(parent: string | undefined, key: string): string {
+  return !!parent ? `${parent}.${key}` : key
 }
 
-export function formatPath(context: Context): string {
-  const res = [] as string[];
-  while (context.parent !== undefined) {
-    res.push(context.key.toString());
-    context = context.parent;
-  }
-  res.reverse();
-  return res.join(".");
-}
-
-export function failure(error: string, ctx: Context) {
-  return new Failure(error, formatPath(ctx));
+export function failure(error: string, path?: string) {
+  return new Failure(error, path);
 }
 
 export function success<T>(value: T) {
@@ -52,61 +36,61 @@ export function isSuccess<T>(v: Result<T>): v is Success<T> {
 }
 
 function succeed<T>(value: T): Source<T> {
-  return (_value: unknown, ctx: Context) => success<T>(value);
+  return (_value: unknown) => success<T>(value);
 }
 
 function fail<T>(error: string): Source<T> {
-  return (_value: unknown, ctx: Context) => new Failure(error, "");
+  return (_value: unknown) => new Failure(error, "");
 }
 
-const str: Source<string> = (value: unknown, ctx: Context) => {
-  if (typeof value !== "string") return failure("expected_string", ctx);
+const str: Source<string> = (value: unknown) => {
+  if (typeof value !== "string") return failure("expected_string");
   return success(value);
 };
 
 export type LiteralTypes = undefined | null | boolean | number | string;
 
 function lit<T extends LiteralTypes>(expect: T): Source<T> {
-  return (value: unknown, ctx: Context) => {
-    if (value !== expect) return failure("expected_literal", ctx);
+  return (value: unknown) => {
+    if (value !== expect) return failure("expected_literal");
     return success(expect);
   };
 }
 
-const undef: Source<undefined> = (value: unknown, ctx: Context) => {
-  if (value !== undefined) return failure("expected_undefined", ctx);
+const undef: Source<undefined> = (value: unknown) => {
+  if (value !== undefined) return failure("expected_undefined");
   return success(value);
 };
 
-const nullt: Source<null> = (value: unknown, ctx: Context) => {
-  if (value !== null) return failure("expected_null", ctx);
+const nullt: Source<null> = (value: unknown) => {
+  if (value !== null) return failure("expected_null");
   return success(value);
 };
 
-const num: Source<number> = (value: unknown, ctx: Context) => {
-  if (typeof value !== "number") return failure("expected_number", ctx);
+const num: Source<number> = (value: unknown) => {
+  if (typeof value !== "number") return failure("expected_number");
   return success(value);
 };
 
-const bool: Source<boolean> = (value: unknown, ctx: Context) => {
-  if (typeof value !== "boolean") return failure("expected_boolean", ctx);
+const bool: Source<boolean> = (value: unknown) => {
+  if (typeof value !== "boolean") return failure("expected_boolean");
   return success(value);
 };
 
-const date: Source<Date> = (value: unknown, ctx: Context) => {
+const date: Source<Date> = (value: unknown) => {
   if (!(value instanceof Date) || isNaN(value.getTime())) {
-    return failure("expected_date", ctx);
+    return failure("expected_date");
   }
   return success(value);
 };
 
-const strDate: Transform<string, Date> = (value: string, ctx: Context) => {
-  return date(new Date(value), ctx);
+const strDate: Transform<string, Date> = (value: string) => {
+  return date(new Date(value));
 };
 
-const strNum: Transform<string, number> = (value: string, ctx: Context) => {
+const strNum: Transform<string, number> = (value: string) => {
   const v = parseFloat(value);
-  if (isNaN(v)) return failure("expected_number_string", ctx);
+  if (isNaN(v)) return failure("expected_number_string");
   return success(v);
 };
 
@@ -115,75 +99,107 @@ const pass = <S>(value: S) => success(value);
 function opt<S, T>(
   d: Transform<S, T>
 ): Transform<S | undefined | null, T | undefined> {
-  return (value: S | undefined | null, ctx: Context) => {
+  return (value: S | undefined | null) => {
     if (value === undefined || value === null) return success(undefined);
-    return d(value, ctx);
+    return d(value);
   };
 }
 
 function def<S, T>(defval: T, d: Transform<S, T>) {
-  return (value: S | undefined | null, ctx: Context) => {
+  return (value: S | undefined | null) => {
     if (value === undefined || value === null) return success(defval);
-    return d(value, ctx);
+    return d(value);
   };
 }
 
 function arr<T>(d: Source<T>): Source<T[]> {
-  return (value: unknown, ctx: Context) => {
-    if (!Array.isArray(value)) return failure("expected_array", ctx);
+  return (value: unknown) => {
+    if (!Array.isArray(value)) return failure("expected_array");
     const result = [] as T[];
 
     for (let i = 0; i < value.length; i++) {
-      const r = d(value[i], context(ctx, `${i}`));
-      if (!isSuccess(r)) return r;
+      const r = d(value[i]);
+      if (!isSuccess(r)) return failure(r.error, joinPath(r.path, String(i)))
       result[i] = r.value;
     }
     return success(result);
   };
 }
 
-type IsPartial<T extends object, P extends boolean> =
-  P extends true ? Partial<T> : T
 
-const _obj = <P extends boolean>(isPartial: P) => <T extends object>(
-  fields: { [K in keyof T]: Source<T[K]> },
-): Source<IsPartial<T, P>> => {
-  return (value: unknown, ctx: Context) => {
-    if (typeof value !== "object" || value === null) {
-      return failure("expected_object", ctx);
+type GetTypes<T> = { [K in keyof T]: Source<T[K]> }
+
+type ParseProps = { [x in string]: Source<any> }
+
+
+function parseProps<T extends ParseProps, B extends boolean>(
+  parsers: T | undefined,
+  optional: B
+): Source<true extends B ? Partial<GetTypes<T>> : GetTypes<T>> {
+  return (value: unknown) => {
+    if (typeof value !== 'object' || value === null) {
+      return failure('expected_object')
     }
-    const result = {} as IsPartial<T, P>;
-    const keys = Object.keys(fields) as (keyof T)[];
-    for (let i = 0; i < keys.length; i++) {
-      const key = keys[i];
-      const fieldVal = (value as any)[key];
-      if (fieldVal !== undefined) {
-        const r = fields[key](fieldVal, context(ctx, String(key)));
-        if (!isSuccess(r)) return r;
-        (result as any)[key] = r.value;
-      } else if (!isPartial) {
-        return failure(`Missing field: ${key}`, context(ctx, String(key)))
+
+    if (parsers === undefined) return success({} as any)
+
+    const resultObj = {} as (true extends B ? Partial<GetTypes<T>> : GetTypes<T>)
+    const entries: [ keyof T, Source<any>][] = Object.entries(parsers)
+    for (let i = 0; i < entries.length; i++) {
+      const [key, parse] = entries[i]
+      if (value.hasOwnProperty(key)) {
+        const result = parse((value as any)[key])
+        if (isSuccess(result)) {
+          resultObj[key] = result.value
+        } else {
+          return failure(result.error, joinPath(result.path, String(key)))
+        }
+      } else if (!optional) {
+        return failure('missing_field', String(key))
       }
     }
-    return success(result);
-  };
+    return success(resultObj)
+  }
 }
 
-const obj = _obj(false)
+type OptionalPropertyNames<T> =
+  { [K in keyof T]: undefined extends T[K] ? K : never }[keyof T];
 
-const partial = _obj(true);  
+type SpreadProperties<L, R, K extends keyof L & keyof R> =
+  { [P in K]: L[P] | Exclude<R[P], undefined> };
+
+type Id<T> = {[K in keyof T]: T[K]} 
+
+type Spread<L, R> = Id<
+  & Pick<L, Exclude<keyof L, keyof R>>
+  & Pick<R, Exclude<keyof R, OptionalPropertyNames<R>>>
+  & Pick<R, Exclude<OptionalPropertyNames<R>, keyof L>>
+  & SpreadProperties<L, R, OptionalPropertyNames<R> & keyof L>
+>
+
+function obj<M extends ParseProps, O extends ParseProps>(fields: M, optional?: O): Source<Spread<M, Partial<O>>> {
+  const requiredFields = parseProps(fields, false)
+  const optFields = parseProps(optional, true)
+  return (value: unknown) => {
+    const r = requiredFields(value)
+    if (isFailure(r)) return r
+    const o = optFields(value)
+    if (isFailure(o)) return o
+    return success({...r.value, ...o.value} as any)
+  }
+}
 
 function rec<T>(decoder: Source<T>): Source<Record<string, T>> {
-  return (value: unknown, ctx: Context) => {
+  return (value: unknown) => {
     if (typeof value !== "object" || value === null) {
-      return failure("expected_object", ctx);
+      return failure("expected_object");
     }
     const result = {} as Record<string, T>;
     const keys = Object.keys(value);
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
-      const r = decoder((value as any)[key], context(ctx, key));
-      if (isFailure(r)) return r;
+      const r = decoder((value as any)[key]);
+      if (isFailure(r)) return failure(r.error, joinPath(r.path, key));
       result[key] = r.value;
     }
     return success(result);
@@ -193,12 +209,12 @@ function rec<T>(decoder: Source<T>): Source<Record<string, T>> {
 function some<S, T extends any[]>(
   ...d: { [K in keyof T]: Transform<S, T[K]> }
 ): Transform<S, T[number]> {
-  return (value: S, ctx: Context) => {
+  return (value: S) => {
     for (let i = 0; i < d.length; i++) {
-      const r = d[i](value, ctx);
+      const r = d[i](value);
       if (isSuccess(r)) return r;
     }
-    return failure("expected_union", ctx);
+    return failure("expected_union");
   };
 }
 
@@ -229,12 +245,12 @@ function select<S, R, D1, D2, D3, D4, D5>(
 function select(
   ...selectors: [Transform<any, any>, SelFunc<any, any>][]
 ): Transform<any, any> {
-  return (value: any, ctx: Context) => {
+  return (value: any) => {
     for (let i = 0; i < selectors.length; i++) {
-      const r = selectors[i][0](value, ctx);
+      const r = selectors[i][0](value);
       if (isSuccess(r)) return success(selectors[i][1](r.value));
     }
-    return failure("selector_not_matched", ctx);
+    return failure("selector_not_matched");
   };
 }
 
@@ -242,10 +258,10 @@ function map<S, T extends any[], R>(
   f: (...values: T) => R,
   ...d: { [K in keyof T]: Transform<S, T[K]> }
 ): Transform<S, R> {
-  return (value: S, ctx: Context) => {
+  return (value: S) => {
     const result = ([] as unknown) as T;
     for (let i = 0; i < d.length; i++) {
-      const r = d[i](value, ctx);
+      const r = d[i](value);
       if (!isSuccess(r)) return r;
       result[i] = r.value;
     }
@@ -276,10 +292,10 @@ function pipe<A, B, C, D, E, F>(
   d5: Transform<E, F>
 ): Transform<A, F>;
 function pipe(...d: Transform<any, any>[]): Transform<any, any> {
-  return (value: any, ctx: Context) => {
+  return (value: any) => {
     let result = value;
     for (let i = 0; i < d.length; i++) {
-      const r = d[i](result, ctx);
+      const r = d[i](result);
       if (!isSuccess(r)) return r;
       result = r.value;
     }
@@ -288,17 +304,17 @@ function pipe(...d: Transform<any, any>[]): Transform<any, any> {
 }
 
 export function runDecoder<S, T>(d: Transform<S, T>, value: S): Result<T> {
-  return d(value, ROOT_CONTEXT);
+  return d(value);
 }
 
 export class TransformError extends Error {
-  constructor(msg: string, public readonly path: string) {
+  constructor(msg: string, public readonly path?: string) {
     super(msg);
   }
 }
 
 export function runDecoderE<S, T>(d: Transform<S, T>, value: S): T {
-  const r = d(value, ROOT_CONTEXT);
+  const r = d(value);
   if (isSuccess(r)) {
     return r.value;
   } else {
@@ -323,7 +339,6 @@ export const Decoders = {
   Def: def,
   Obj: obj,
   Rec: rec,
-  Part: partial,
   Arr: arr,
   Some: some,
   Map: map,
