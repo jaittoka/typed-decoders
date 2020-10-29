@@ -10,7 +10,8 @@ function parseSuccess<A, B>(test: test.Test, trans: Transform<A, B>, value: A): 
 function parseFail<A, B>(test: test.Test, trans: Transform<A, B>, value: A): string {
   const result = trans(value)
   test.assert(isFailure(result))
-  return (result as Failure).error
+  const f = (result as Failure)
+  return `${f.error}${f.path ? `, path = ${f.path}` : ''}`
 }
 
 
@@ -185,7 +186,7 @@ test("Tuple2", test => {
   test.plan(3)
   const trans = D.Tuple(D.Num, D.Str)
   test.deepEqual(parseSuccess(test, trans, [ 1, 'x' ]), [ 1, 'x' ])
-  parseFail(test, trans, [ 'x', 1 ])
+  console.log(parseFail(test, trans, [ 'x', 1 ]))
 })
 
 test("Integer", test => {
