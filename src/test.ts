@@ -1,8 +1,21 @@
 import * as test from "tape";
-import { Decoders as D, runDecoder, runDecoderE, isSuccess, isFailure } from "./index";
+import { Decoders as D, runDecoder, runDecoderE, isSuccess, isFailure, Transform, Success, Failure } from "./index";
+
+function parseSuccess<A, B>(test: test.Test, trans: Transform<A, B>, value: A): B {
+  const result = trans(value)
+  test.assert(isSuccess(result))
+  return (result as Success<B>).value
+}
+
+function parseFail<A, B>(test: test.Test, trans: Transform<A, B>, value: A): string {
+  const result = trans(value)
+  test.assert(isFailure(result))
+  return (result as Failure).error
+}
+
 
 test("Unify", test => {
-  test.plan(4);
+  test.plan(8)
 
   const UD = D.Select(
     [D.Num, (v: number) => `${v}`],
@@ -11,10 +24,10 @@ test("Unify", test => {
     [D.Pass, (v: unknown) => "unknown"]
   );
 
-  test.equal(runDecoderE(UD, 12), "12");
-  test.equal(runDecoderE(UD, false), "false");
-  test.equal(runDecoderE(UD, [1, 2, 3]), "1,2,3");
-  test.equal(runDecoderE(UD, "hello"), "unknown");
+  test.equal(parseSuccess(test, UD, 12), "12")
+  test.equal(parseSuccess(test, UD, false), "false")
+  test.equal(parseSuccess(test, UD, [1, 2, 3]), "1,2,3")
+  test.equal(parseSuccess(test, UD, "hello"), "unknown")
 });
 
 test("Object", test => {
@@ -25,7 +38,7 @@ test("Object", test => {
       street: D.Str
     }),
     cars: D.Arr(D.Str)
-  });
+  })
 
   const data = {
     name: "John",
@@ -34,26 +47,25 @@ test("Object", test => {
       street: "Sunset 12"
     },
     cars: ["ferrari", "bmw"]
-  };
+  }
 
-  test.plan(1);
-  const result = runDecoderE(Person, data);
-  test.deepEqual(result, data);
+  test.plan(2)
+  const result = parseSuccess(test, Person, data)
+  test.deepEqual(result, data)
 });
 
 test("Object should fail with missing field", test => {
   const Person = D.Obj({
     name: D.Str,
     age: D.Num,
-  });
+  })
 
   const data = {
     name: "John",
-  };
+  }
 
-  test.plan(1);
-  const result = runDecoder(Person, data);
-  test.assert(isFailure(result));
+  test.plan(1)
+  parseFail(test, Person, data)
 });
 
 
@@ -61,109 +73,123 @@ test("Union", test => {
   const E1 = D.Obj({
     kind: D.Lit("number"),
     value: D.Num
-  });
+  })
   const E2 = D.Obj({
     kind: D.Lit("operator"),
     name: D.Str
-  });
+  })
 
   const data = {
     kind: "operator",
     name: "plus"
-  };
+  }
 
-  test.plan(1);
+  test.plan(2)
 
-  const result = runDecoderE(D.Some(E1, E2), data);
-  test.deepEqual(result, data);
-});
+  const result = parseSuccess(test, D.Some(E1, E2), data)
+  test.deepEqual(result, data)
+})
 
 test("Every", test => {
-  test.plan(1);
+  test.plan(2)
 
   const AD = D.Obj({
     name: D.Str
-  });
+  })
   const BD = D.Obj({
     stars: D.Num
-  });
-  const MD = D.Map((a, b) => ({ foo: a.name, count: b.stars }), AD, BD);
-  const data = { name: "Orion", stars: 12359 };
-  const result = runDecoderE(MD, data);
-  test.deepEqual(result, { foo: "Orion", count: 12359 });
+  })
+  const MD = D.Map((a, b) => ({ foo: a.name, count: b.stars }), AD, BD)
+  const data = { name: "Orion", stars: 12359 }
+  const result = parseSuccess(test, MD, data)
+  test.deepEqual(result, { foo: "Orion", count: 12359 })
 });
 
 test("DateString", test => {
-  test.plan(2);
+  test.plan(2)
 
-  const StrDate = D.Pipe(D.Str, D.StrDate);
-  const d = new Date();
-  let result = runDecoder(StrDate, d.toISOString());
-  test.assert(isSuccess(result));
-  test.equal((result as any).value.getTime(), d.getTime());
-});
+  const StrDate = D.Pipe(D.Str, D.StrDate)
+  const d = new Date()
+  let result = parseSuccess(test, StrDate, d.toISOString())
+  test.equal(result.getTime(), d.getTime())
+})
 
 test("Array of objects", test => {
-  test.plan(2);
-  const d1 = new Date("2020-01-02");
-  const d2 = new Date("2020-01-03");
+  test.plan(2)
+  const d1 = new Date("2020-01-02")
+  const d2 = new Date("2020-01-03")
   const decoder = D.Arr(
     D.Obj({
       date: D.Date,
       isOk: D.Bool
     })
-  );
+  )
 
   const data = [
     { date: d1, isOk: true },
     { date: d2, isOk: false }
-  ];
+  ]
 
-  let result = runDecoder(decoder, data);
-  test.assert(isSuccess(result));
-  test.deepEqual((result as any).value, [
+  let result = parseSuccess(test, decoder, data)
+
+  test.deepEqual(result, [
     { date: d1, isOk: true },
     { date: d2, isOk: false }
-  ]);
-});
+  ])
+})
 
 test("Partial", test => {
-  test.plan(4);
+  test.plan(4)
 
   const decoder = D.Obj({
     name: D.Str
   }, {
     age: D.Num
-  });
+  })
 
-  let result;
-  result = runDecoder(decoder, { name: 'x' });
-  test.assert(isSuccess(result));
-  result = runDecoder(decoder, { name: "x", age: 'x' });
-  test.assert(isFailure(result));
-  result = runDecoder(decoder, { name: "x", age: 3 });
-  test.assert(isSuccess(result));
-  test.deepEqual((result as any).value, { name: "x", age: 3 });
-});
+  let result
+  result = parseSuccess(test, decoder, { name: 'x' })
+  parseFail(test, decoder, { name: "x", age: 'x' })
+  result = parseSuccess(test, decoder, { name: "x", age: 3 })
+  test.deepEqual(result, { name: "x", age: 3 })
+})
 
 test("Record should succeed", test => {
-  test.plan(1);
-  const decoder = D.Rec(D.Num);
+  test.plan(2)
+  const decoder = D.Rec(D.Num)
   const data = {
-    "foo": 3,
-    "bar": 4
+    foo: 3,
+    bar: 4
   }
-  const result = runDecoder(decoder, data);
-  test.assert(isSuccess(result));
+  test.deepEqual(parseSuccess(test, decoder, data), data)
 })
 
 test("Record should fail", test => {
-  test.plan(1);
-  const decoder = D.Rec(D.Num);
+  test.plan(1)
+  const decoder = D.Rec(D.Num)
   const data = {
-    "foo": 3,
-    "bar": "4"
+    foo: 3,
+    bar: "4"
   }
-  const result = runDecoder(decoder, data);
-  test.assert(isFailure(result));
+  parseFail(test, decoder, data)
+})
+
+test("Tuple1", test => {
+  test.plan(3)
+  const trans = D.Tuple(D.Num)
+  test.deepEqual(parseSuccess(test, trans, [ 1 ]), [ 1 ])
+  parseFail(test, trans, [ 'x' ])
+})
+
+test("Tuple2", test => {
+  test.plan(3)
+  const trans = D.Tuple(D.Num, D.Str)
+  test.deepEqual(parseSuccess(test, trans, [ 1, 'x' ]), [ 1, 'x' ])
+  parseFail(test, trans, [ 'x', 1 ])
+})
+
+test("Integer", test => {
+  test.plan(3)
+  test.equal(parseSuccess(test, D.Int, 1), 1)
+  parseFail(test, D.Int, 1.0001)
 })

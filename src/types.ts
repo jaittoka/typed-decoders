@@ -16,3 +16,5 @@ export type Transform<S, T> = (value: S) => Result<T>
 export type Source<T> = Transform<unknown, T>
 
 export type GetType<T> = T extends Transform<any, infer R> ? R : never
+
+export type GetSourceType<T> = T extends Transform<infer S, any> ? S : never

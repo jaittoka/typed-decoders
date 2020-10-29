@@ -1,8 +1,9 @@
 import { arr, arrT } from "./array";
-import { undef, nullt, str, lit, num, bool, func, arru, obju, date, strDate, strNum } from "./basic";
+import { undef, nullt, str, lit, num, bool, func, arru, obju, date, strDate, strNum, int } from "./basic";
 import { opt, def, map, select, some, pipe } from "./compose";
 import { succeed, fail, pass } from "./core";
 import { obj, rec } from "./object";
+import { tuple, tupleN } from './tuple'
 
 export const Decoders = {
   Succeed: succeed,
@@ -12,6 +13,7 @@ export const Decoders = {
   Str: str,
   Lit: lit,
   Num: num,
+  Int: int,
   Bool: bool,
   Func: func,
   ArrU: arru,
@@ -26,6 +28,8 @@ export const Decoders = {
   Rec: rec,
   Arr: arr,
   ArrT: arrT,
+  Tuple: tuple,
+  TupleN: tupleN,
   Some: some,
   Map: map,
   Select: select,
