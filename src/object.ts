@@ -1,4 +1,4 @@
-import { failure, success, isSuccess, joinPath, isFailure } from "./core"
+import { failure, success, isSuccess, failKey, isFailure } from "./core"
 import { Source, GetType } from "./types"
 
 type GetTypes<T> = { [K in keyof T]: T[K] extends Source<infer U> ? U : never }
@@ -25,7 +25,7 @@ function parseProps<T extends ParseProps, B>(
         if (isSuccess(result)) {
           resultObj[key] = result.value
         } else {
-          return failure(result.error, joinPath(result.path, String(key)))
+          return failKey(result, String(key))
         }
       } else if (!optional) {
         return failure('missing_field', String(key))
@@ -77,7 +77,7 @@ export function rec<T>(decoder: Source<T>): Source<Record<string, T>> {
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i]
       const r = decoder((value as any)[key])
-      if (isFailure(r)) return failure(r.error, joinPath(r.path, key))
+      if (isFailure(r)) return failKey(r, key)
       result[key] = r.value
     }
     return success(result)
