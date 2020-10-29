@@ -14,6 +14,7 @@ export const date = basicParser('Date')
 export const func = basicParser('Function')
 export const arru = basicParser('Array')
 export const obju = basicParser('Object')
+export const int: Transform<number, number> = (v) => isFinite(v) && Math.floor(v) === v ? success(v) : failure('expected integer')
 
 export type LiteralTypes = undefined | null | boolean | number | string
 
