@@ -89,7 +89,7 @@ const strDate: Transform<string, Date> = (value: string) => {
 };
 
 const strNum: Transform<string, number> = (value: string) => {
-  const v = parseFloat(value);
+  const v = new Number(value);
   if (isNaN(v)) return failure("expected_number_string");
   return success(v);
 };
