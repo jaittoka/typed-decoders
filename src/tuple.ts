@@ -1,4 +1,4 @@
-import { arru, strNum, num, bool } from "./basic"
+import { arru } from "./basic"
 import { failure, isSuccess, success } from "./core"
 import { Transform, GetSourceType, GetType } from "./types"
 import { pipe } from './compose'
