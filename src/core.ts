@@ -13,7 +13,9 @@ export const isSuccess = <T>(v: Result<T>): v is Success<T> => v.success === tru
 
 export const succeed = <T>(value: T): Source<T> => (_value: unknown) => success<T>(value)
 
-export const fail = <T>(error: string): Source<T> => (_value: unknown) => failure(error, "")
+export const fail = <T>(error: string): Source<T> => (_value: unknown) => failure(error)
+
+export const failKey = (f: Failure, key: string): Result<never> => failure(f.error, joinPath(f.path, key))
 
 export const pass: Transform<unknown, unknown> = <S>(value: S) => success(value);
 

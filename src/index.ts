@@ -1,4 +1,4 @@
-import { arr } from "./array";
+import { arr, arrT } from "./array";
 import { undef, nullt, str, lit, num, bool, func, arru, obju, date, strDate, strNum } from "./basic";
 import { opt, def, map, select, some, pipe } from "./compose";
 import { succeed, fail, pass } from "./core";
@@ -25,6 +25,7 @@ export const Decoders = {
   Obj: obj,
   Rec: rec,
   Arr: arr,
+  ArrT: arrT,
   Some: some,
   Map: map,
   Select: select,

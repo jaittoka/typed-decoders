@@ -1,15 +1,21 @@
-import { failure, isSuccess, joinPath, success } from "./core"
-import { Source } from "./types"
+import { arru } from "./basic"
+import { pipe } from "./compose"
+import { isSuccess, failKey, success } from "./core"
+import { Result, Transform } from "./types"
 
-export const arr = <T>(d: Source<T>): Source<T[]> =>
-  (value: unknown) => {
-    if (!Array.isArray(value)) return failure("expected_array")
-    const result = [] as T[]
-
-    for (let i = 0; i < value.length; i++) {
-      const r = d(value[i])
-      if (!isSuccess(r)) return failure(r.error, joinPath(r.path, String(i)))
-      result[i] = r.value
+const map = <A, B>(transform: Transform<A, B>) => (arr: A[]): Result<B[]> => {
+  const result: B[] = []
+  for (let i = 0; i < arr.length; i++) {
+    const r = transform(arr[i])
+    if (isSuccess(r)) {
+      result.push(r.value)
+    } else {
+      return failKey(r, String(i))
     }
-    return success(result)
   }
+  return success(result)
+}
+
+export const arrT = <L, R>(parser: Transform<L, R>): Transform<L[], R[]> => map(parser)
+
+export const arr = <L>(parser: Transform<unknown, L>) => pipe(arru, arrT(parser))
