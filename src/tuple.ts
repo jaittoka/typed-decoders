@@ -1,5 +1,5 @@
 import { arru } from "./basic"
-import { failure, isSuccess, success } from "./core"
+import { failKey, failure, isSuccess, success } from "./core"
 import { Transform, GetSourceType, GetType } from "./types"
 import { pipe } from './compose'
 
@@ -25,7 +25,7 @@ export const tuple = <T extends ReadonlyArray<Transform<any, any>>>(...transform
       if (isSuccess(r)) {
         (result as any)[i] = r.value
       } else {
-        return r
+        return failKey(r, String(i))
       }
     }
     return success(result)
