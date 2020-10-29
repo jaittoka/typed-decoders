@@ -106,14 +106,16 @@ type Result = {
 - `Null` Accepts null value
 - `Pass` Accepts anything, but decode result type is still unknown
 - `Opt` Converts decoder to accept also undefined/null values
-- `Obj` Create a decoder that accepts an object. Each field is given an own decoder
+- `Obj` Create a decoder that accepts an object. Each field is given an own decoder. If two objects are given,
+  the second specifies optional fields.
 - `Rec` Create a decoder that accepts a record (an object with string keys and all field values of same type)
-- `Part` Create a decoder that accepts an object with each field optional (partial object). Each field is given an own decoder
 - `Arr` Creates a decoder that accepts an Array. Each item of an array is decoded with same decoder
 - `Some` Creates a decoder that accepts multiple different decodings.
 - `Map` Creates a decoder that accepts multiple types, but converts them all to a single type.
 - `Every` Creates a decoder that decodes value with multiple object types and combines them.
 - `Def` Converts a decoder to a decoder with a default value.
+- `Pipe` Creates a decoder that runs multiple decoders, passing the result to the next decoder. The processing is
+  stopped at first error.
 
 # Examples for the more complex decoders
 
@@ -190,7 +192,21 @@ When you have a decoder, you can run it with `runDecoder`-function.
 function runDecoder<S, T>(decoder: Transform<T>, value: unknown): Result<T>;
 ```
 
-It basically just initializes the decode context and calls the .
+It basically just initializes the decode context and calls the decoder.
+
+`isSuccess` and `isFailure` function can be used to check the returned `Result`, and also as
+type guards to narrow its type:
+
+```
+const result = runDecoder(myDecoder, value)
+if (isFailure(result)) {
+  // On failure, path and error are available
+  console.log(`decode failed at ${result.path}: ${result.error}`)
+} else {
+  // On success, value contains the decode result
+  console.log('decoded value:', result.value)
+}
+```
 
 If you prefer exceptions instead of returning a success/failure (Result), you can use `runDecoderE`.
 It will throw an error if the value isn't of correct type.
