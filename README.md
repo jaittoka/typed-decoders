@@ -99,6 +99,7 @@ type Result = {
 - `Str` Accepts string
 - `Bool` Accepts boolean value
 - `Num` Accepts number value
+- `Int` Accepts a number that is an integer
 - `StrNum` Accepts a string that can be converted to number
 - `Undef` Accepts undefined value
 - `Date` Accepts Date instance value
@@ -110,12 +111,15 @@ type Result = {
   the second specifies optional fields.
 - `Rec` Create a decoder that accepts a record (an object with string keys and all field values of same type)
 - `Arr` Creates a decoder that accepts an Array. Each item of an array is decoded with same decoder
+- `ArrT` Creates a transformer from A[] to B[]
 - `Some` Creates a decoder that accepts multiple different decodings.
 - `Map` Creates a decoder that accepts multiple types, but converts them all to a single type.
-- `Every` Creates a decoder that decodes value with multiple object types and combines them.
 - `Def` Converts a decoder to a decoder with a default value.
 - `Pipe` Creates a decoder that runs multiple decoders, passing the result to the next decoder. The processing is
   stopped at first error.
+- `Tuple` Creates a tuple decoder ([S1, S2, ..., Sn ] -> [T1, T2, ..., Tn])
+- `TupleN` Creates a tuple decoder with N unknowns (unknown -> [unknown, unknown, ... ])
+
 
 # Examples for the more complex decoders
 
@@ -192,7 +196,7 @@ When you have a decoder, you can run it with `runDecoder`-function.
 function runDecoder<S, T>(decoder: Transform<T>, value: unknown): Result<T>;
 ```
 
-It basically just initializes the decode context and calls the decoder.
+It just calls the decoder (which is a function).
 
 `isSuccess` and `isFailure` function can be used to check the returned `Result`, and also as
 type guards to narrow its type:
