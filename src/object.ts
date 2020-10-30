@@ -1,5 +1,5 @@
 import { failure, success, isSuccess, failKey, isFailure } from "./core"
-import { Source, GetType } from "./types"
+import { Source, GetType, Id } from "./types"
 
 type GetTypes<T> = { [K in keyof T]: T[K] extends Source<infer U> ? U : never }
 
@@ -35,27 +35,14 @@ function parseProps<T extends ParseProps, B>(
   }
 }
 
-/*
+type SameType<A,B> = [A] extends [B] ? [B] extends [A] ? true : false : false
 
-  The following four helper types are from https://stackoverflow.com/a/49683575
+type Merge<A, B> = 
+  { [K in Exclude<keyof A, keyof A & keyof B>]: A[K] } &
+  { [K in Exclude<keyof B, keyof A & keyof B>]?: B[K] } &
+  { [K in keyof A & keyof B]?: true extends SameType<A[K], B[K]> ? A[K] : never }
 
-*/
-type OptionalPropertyNames<T> =
-  { [K in keyof T]: undefined extends T[K] ? K : never }[keyof T]
-
-type SpreadProperties<L, R, K extends keyof L & keyof R> =
-  { [P in K]: L[P] | Exclude<R[P], undefined> }
-
-type Id<T> = { [K in keyof T]: T[K] }
-
-type Spread<L, R> = Id<
-  & Pick<L, Exclude<keyof L, keyof R>>
-  & Pick<R, Exclude<keyof R, OptionalPropertyNames<R>>>
-  & Pick<R, Exclude<OptionalPropertyNames<R>, keyof L>>
-  & SpreadProperties<L, R, OptionalPropertyNames<R> & keyof L>
->
-
-export function obj<M extends ParseProps, O extends ParseProps = {}>(fields: M, optional?: O): Source<Spread<GetTypes<M>, Partial<GetTypes<O>>>> {
+export function obj<M extends ParseProps, O extends ParseProps = {}>(fields: M, optional?: O): Source<Id<Merge<GetTypes<M>, Partial<GetTypes<O>>>>> {
   const requiredFields = parseProps(fields, false)
   const optFields = parseProps(optional, true)
   return (value: unknown) => {

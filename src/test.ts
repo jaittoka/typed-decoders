@@ -1,5 +1,6 @@
 import * as test from "tape";
 import { Decoders as D, runDecoder, runDecoderE, isSuccess, isFailure, Transform, Success, Failure } from "./index";
+import { GetType } from "./types";
 
 function parseSuccess<A, B>(test: test.Test, trans: Transform<A, B>, value: A): B {
   const result = trans(value)
@@ -153,6 +154,36 @@ test("Partial", test => {
   parseFail(test, decoder, { name: "x", age: 'x' })
   result = parseSuccess(test, decoder, { name: "x", age: 3 })
   test.deepEqual(result, { name: "x", age: 3 })
+})
+
+test("Multilevel objects", test => {
+  const Addr = D.Obj({}, { zip: D.Num })
+  const Company = D.Obj({
+    name: D.Str,
+    addr: Addr
+  })
+  const Person = D.Obj({
+    name: D.Str,
+    birth: D.Pipe(D.Str, D.StrDate),
+    company: Company,
+    addr: Addr
+  })
+
+  test.plan(2)
+  const dateStr = '2000/01/13'
+  const date = new Date(dateStr)
+  const data = {
+    name: 'John',
+    birth: dateStr,
+    company: {
+      name: 'Acme inc',
+      addr: { zip: 23 }
+    },
+    addr: {}
+  }
+  const result = parseSuccess(test, Person, data)
+  const expect = { ...data, birth: date }
+  test.deepEqual(result, expect)
 })
 
 test("Record should succeed", test => {
