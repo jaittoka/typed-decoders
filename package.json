@@ -19,7 +19,7 @@
   "scripts": {
     "prepublishOnly": "npm run compile",
     "compile": "npm run clean && tsc",
-    "watch": "tsc -w ./src",
+    "watch": "tsc -w",
     "clean": "rm -rf lib",
     "test": "ts-node ./src/test.ts"
   },
