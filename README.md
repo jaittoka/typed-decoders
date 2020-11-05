@@ -106,7 +106,7 @@ type Result = {
 - `StrDate` Accepts a string that can be converted to a Date
 - `Null` Accepts null value
 - `Pass` Accepts anything, but decode result type is still unknown
-- `Opt` Converts decoder to accept also undefined/null values
+- `Opt` Converts decoder to accept also undefined/null values. Both are converted to undefined.
 - `Obj` Create a decoder that accepts an object. Each field is given an own decoder. If two objects are given,
   the second specifies optional fields.
 - `Rec` Create a decoder that accepts a record (an object with string keys and all field values of same type)
