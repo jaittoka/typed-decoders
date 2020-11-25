@@ -1,7 +1,7 @@
 import { Result, Failure, Success, Source, Transform } from "./types"
 
-export const joinPath = (parent: string | undefined, key: string): string =>
-  !!parent ? `${parent}.${key}` : key
+export const joinPath = (parent: string, key?: string): string =>
+  !!key ? `${parent}.${key}` : parent
 
 export const failure = (error: string, path?: string): Result<never> => ({ success: false, error, path })
 
@@ -15,7 +15,7 @@ export const succeed = <T>(value: T): Source<T> => (_value: unknown) => success<
 
 export const fail = <T>(error: string): Source<T> => (_value: unknown) => failure(error)
 
-export const failKey = (f: Failure, key: string): Result<never> => failure(f.error, joinPath(f.path, key))
+export const failKey = (f: Failure, key: string): Result<never> => failure(f.error, joinPath(key, f.path))
 
 export const pass: Transform<unknown, unknown> = <S>(value: S) => success(value);
 
