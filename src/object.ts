@@ -35,12 +35,9 @@ function parseProps<T extends ParseProps, B>(
   }
 }
 
-type SameType<A,B> = [A] extends [B] ? [B] extends [A] ? true : false : false
-
 type Merge<A, B> = 
-  { [K in Exclude<keyof A, keyof A & keyof B>]: A[K] } &
-  { [K in Exclude<keyof B, keyof A & keyof B>]?: B[K] } &
-  { [K in keyof A & keyof B]?: true extends SameType<A[K], B[K]> ? A[K] : never }
+  { [K in Exclude<keyof A, keyof B>]: A[K] } &
+  { [K in keyof B]?: B[K] }
 
 export function obj<M extends ParseProps, O extends ParseProps = {}>(fields: M, optional?: O): Source<Id<Merge<GetTypes<M>, Partial<GetTypes<O>>>>> {
   const requiredFields = parseProps(fields, false)
