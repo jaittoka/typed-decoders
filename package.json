@@ -11,7 +11,7 @@
     "json",
     "checking"
   ],
-  "version": "3.4.3",
+  "version": "3.4.4",
   "main": "lib/index",
   "typings": "lib/index",
   "author": "Jukka Aittokallio <jukka@aittokallio.com>",
