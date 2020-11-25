@@ -1,6 +1,5 @@
 import * as test from "tape";
-import { Decoders as D, runDecoder, runDecoderE, isSuccess, isFailure, Transform, Success, Failure } from "./index";
-import { GetType } from "./types";
+import { Decoders as D, isSuccess, isFailure, Transform, Success, Failure } from "./index";
 
 function parseSuccess<A, B>(test: test.Test, trans: Transform<A, B>, value: A): B {
   const result = trans(value)
@@ -8,11 +7,10 @@ function parseSuccess<A, B>(test: test.Test, trans: Transform<A, B>, value: A): 
   return (result as Success<B>).value
 }
 
-function parseFail<A, B>(test: test.Test, trans: Transform<A, B>, value: A): string {
+function parseFail<A, B>(test: test.Test, trans: Transform<A, B>, value: A): Failure {
   const result = trans(value)
   test.assert(isFailure(result))
-  const f = (result as Failure)
-  return `${f.error}${f.path ? `, path = ${f.path}` : ''}`
+  return result as Failure
 }
 
 
@@ -71,7 +69,7 @@ test("Object should fail with missing field", test => {
 });
 
 
-test("Union", test => {
+test("Some", test => {
   const E1 = D.Obj({
     kind: D.Lit("number"),
     value: D.Num
@@ -92,7 +90,7 @@ test("Union", test => {
   test.deepEqual(result, data)
 })
 
-test("Every", test => {
+test("Map", test => {
   test.plan(2)
 
   const AD = D.Obj({
@@ -102,6 +100,7 @@ test("Every", test => {
     stars: D.Num
   })
   const MD = D.Map((a, b) => ({ foo: a.name, count: b.stars }), AD, BD)
+
   const data = { name: "Orion", stars: 12359 }
   const result = parseSuccess(test, MD, data)
   test.deepEqual(result, { foo: "Orion", count: 12359 })
@@ -169,7 +168,6 @@ test("Multilevel objects", test => {
     addr: Addr
   })
 
-  test.plan(2)
   const dateStr = '2000/01/13'
   const date = new Date(dateStr)
   const data = {
@@ -181,10 +179,44 @@ test("Multilevel objects", test => {
     },
     addr: {}
   }
+
+  test.plan(2)  
   const result = parseSuccess(test, Person, data)
   const expect = { ...data, birth: date }
   test.deepEqual(result, expect)
 })
+
+test("Multilevel object errors", test => {
+  const Addr = D.Obj({}, { zip: D.Num })
+
+  const Person = D.Obj({
+    name: D.Str,
+    addr: Addr,
+  })
+  const Company = D.Obj({
+    name: D.Str,
+    employees: D.Arr(Person)
+  })
+
+  const data = {
+    name: 'Acme inc',
+    employees: [
+      {
+        name: 'John',
+        addr: { zip: 12 },
+      },
+      {
+        name: 'Jill',
+        addr: { zip: "34" }
+      }
+    ]
+  }
+
+  test.plan(2)  
+  const result = parseFail(test, Company, data)
+  test.equal(result.path, 'employees.1.addr.zip')
+})
+
 
 test("Record should succeed", test => {
   test.plan(2)
@@ -217,7 +249,7 @@ test("Tuple2", test => {
   test.plan(3)
   const trans = D.Tuple(D.Num, D.Str)
   test.deepEqual(parseSuccess(test, trans, [ 1, 'x' ]), [ 1, 'x' ])
-  console.log(parseFail(test, trans, [ 'x', 1 ]))
+  parseFail(test, trans, [ 'x', 1 ])
 })
 
 test("Integer", test => {
