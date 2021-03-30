@@ -10,7 +10,7 @@ This module allows you to check if an unknown javascript value conforms to a val
 
 You might receive a javascript object from a server that represents a library resource:
 
-```
+```TypeScript
 import { Decoders as D, runDecoder, isSuccess, GetType } from './index';
 
 const PersonDecoder = D.obj({
@@ -30,7 +30,7 @@ const ResourceDecoder = D.obj({
 
 With ResourceDecoder you can assure that an object received from the server is valid.
 
-```
+```TypeScript
 const result = runDecoder(ResourceDecoder, valueFromServer);
 if (isSuccess(result)) {
   // value was decoded succesfully (result.value has the actual value)
@@ -39,13 +39,13 @@ if (isSuccess(result)) {
 
 The type can be inferred directly from the decoders:
 
-```
+```TypeScript
 type Resource = GetType<typeof ResourceDecoder>
 ```
 
 The inferred type for Resource is:
 
-```
+```TypeScript
 type Resource = {
     id: number;
     type: "book" | "blueray" | "dvd";
@@ -63,7 +63,7 @@ This is very useful, because you don't have to write the types manually.
 
 You can easily form different kind of types. For example a tagged unions:
 
-```
+```TypeScript
 const SuccessD = D.Obj({
   kind: D.Lit("success"),
   value: D.Num
@@ -81,7 +81,7 @@ type Result = GetType<typeof ResultD>;
 
 The inferred type for Result is:
 
-```
+```TypeScript
 type Result = {
     kind: "success";
     value: number;
@@ -127,7 +127,7 @@ type Result = {
 
 An array of key-value pairs
 
-```
+```TypeScript
 const KeyValuesDecoder = D.Arr(D.Obj({
   key: D.Str,
   value: D.Num
@@ -140,7 +140,7 @@ With select you can make multiple type decoders to converge to one type of decod
 
 For example to convert numbers, strings, booleans to strings use the following:
 
-```
+```TypeScript
 const MySelectDecoder = D.Select(
   [D.Num, (v: number) => `number ${v}`],
   [D.Str, (v: string) => `string ${v}`],
@@ -159,7 +159,7 @@ With Map you can combine one or more decoders to return another type of decoder.
 
 Fo example if you have couple of decoders and you would like to combine them to a cleaner structure:
 
-```
+```TypeScript
 const CarDecoder = D.Obj({
   _brand: D.Some(D.Lit("bmw"), D.Lit("toyota"), D.Lit("volvo")),
   _model: D.Str
@@ -180,7 +180,7 @@ type MyCar = GetType<typeof MyCarDecoder>;
 
 The inferred type for MyCar is
 
-```
+```TypeScript
 type MyCar = {
   brand: "bmw" | "toyota" | "volvo";
   model: string;
@@ -192,7 +192,7 @@ type MyCar = {
 
 When you have a decoder, you can run it with `runDecoder`-function.
 
-```
+```TypeScript
 function runDecoder<S, T>(decoder: Transform<T>, value: unknown): Result<T>;
 ```
 
@@ -201,7 +201,7 @@ It just calls the decoder (which is a function).
 `isSuccess` and `isFailure` function can be used to check the returned `Result`, and also as
 type guards to narrow its type:
 
-```
+```TypeScript
 const result = runDecoder(myDecoder, value)
 if (isFailure(result)) {
   // On failure, path and error are available
