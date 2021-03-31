@@ -1,14 +1,17 @@
 import { success, failure } from "./core"
 import { TypeName, TypeFromName, isOfType } from "./getType"
 import { Source, Transform } from "./types"
+import { pipe } from './compose'
 
 const basicParser = <T extends TypeName>(typeName: T): Source<TypeFromName[T]> =>
   (u: unknown) =>  isOfType(typeName, u) ? success(u) : failure(`expected ${typeName}`)
 
+const NotNaN: Transform<number, number> = (value) => isNaN(value) ? failure('expected valid number') : success(value)
+
 export const undef = basicParser('Undefined')
 export const nullt = basicParser('Null')
 export const bool = basicParser('Boolean')
-export const num = basicParser('Number')
+export const num = pipe(basicParser('Number'), NotNaN)
 export const str = basicParser('String')
 export const date = basicParser('Date')
 export const func = basicParser('Function')
@@ -32,4 +35,9 @@ export const strNum: Transform<string, number> = (value: string) => {
   const v = +new Number(value)
   if (isNaN(v)) return failure("expected_number_string")
   return success(v)
+}
+
+
+function guard<T>(f: (v: unknown) => v is T): Transform<unknown, T> {
+  return (v) => f(v) ? success(v) : failure('expected to match type guard')
 }

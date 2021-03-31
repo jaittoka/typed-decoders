@@ -252,6 +252,17 @@ test("Tuple2", test => {
   parseFail(test, trans, [ 'x', 1 ])
 })
 
+
+test("Number", test => {
+  test.plan(2)
+  test.equal(parseSuccess(test, D.Num, 3), 3)
+})
+
+test("NaN is not a number", test => {
+  test.plan(1)
+  parseFail(test, D.Num, NaN)
+})
+
 test("Integer", test => {
   test.plan(3)
   test.equal(parseSuccess(test, D.Int, 1), 1)
