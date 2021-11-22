@@ -107,12 +107,14 @@ test("Map", test => {
 });
 
 test("DateString", test => {
-  test.plan(2)
+  test.plan(3)
 
   const StrDate = D.Pipe(D.Str, D.StrDate)
   const d = new Date()
-  let result = parseSuccess(test, StrDate, d.toISOString())
-  test.equal(result.getTime(), d.getTime())
+  let success = parseSuccess(test, StrDate, d.toISOString())
+  test.equal(success.getTime(), d.getTime())
+
+  parseFail(test, StrDate, 'asdf')
 })
 
 test("Array of objects", test => {
