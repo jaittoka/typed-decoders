@@ -7,13 +7,14 @@ const basicParser = <T extends TypeName>(typeName: T): Source<TypeFromName[T]> =
   (u: unknown) =>  isOfType(typeName, u) ? success(u) : failure(`expected ${typeName}`)
 
 const NotNaN: Transform<number, number> = (value) => isNaN(value) ? failure('expected valid number') : success(value)
+const NotInvalidDate: Transform<Date, Date> = (value) => isNaN(value.valueOf()) ? failure('expected valid Date') : success(value)
 
 export const undef = basicParser('Undefined')
 export const nullt = basicParser('Null')
 export const bool = basicParser('Boolean')
 export const num = pipe(basicParser('Number'), NotNaN)
 export const str = basicParser('String')
-export const date = basicParser('Date')
+export const date = pipe(basicParser('Date'), NotInvalidDate)
 export const func = basicParser('Function')
 export const arru = basicParser('Array')
 export const obju = basicParser('Object')
